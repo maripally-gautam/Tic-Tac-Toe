@@ -1,0 +1,6 @@
+{
+  "name": "Tic Tac Toe Arcade",
+  "description": "A premium high-fidelity Tic Tac Toe game with smooth animations, synthesized arcade sound effects, local offline play, and real-time multiplayer lobbies.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
