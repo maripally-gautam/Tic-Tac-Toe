@@ -29,11 +29,9 @@ export default function GameBoard({
   const handleCellTap = (index: number) => {
     if (!enabled || board[index] !== null) return;
     
-    // Play coordinate click effects
     const symbol = board.filter(cell => cell !== null).length % 2 === 0 ? "x" : "o";
     playSound(symbol === "x" ? "move_x" : "move_o", soundOn);
     
-    // Simulate haptic vibration on devices
     if (navigator.vibrate) {
       navigator.vibrate([15]);
     }
@@ -41,19 +39,33 @@ export default function GameBoard({
     onCellClick(index);
   };
 
-  const gridColsClass = boardSize === 3 ? "grid-cols-3" : "grid-cols-4";
-  const sizeSizing = boardSize === 3 ? "h-24 w-24 text-4xl" : "h-18 w-18 text-3xl";
+  // Calculate cell size based on board size
+  const cellSize = boardSize === 3 ? "w-[90px] h-[90px]" : "w-[70px] h-[70px]";
+  const gridGap = boardSize === 3 ? "gap-3" : "gap-2";
 
   return (
-    <div className="relative w-full max-w-[340px] aspect-square mx-auto flex items-center justify-center p-2 rounded-2xl">
-      {/* Background neon shadows for game active feel */}
+    <div className="relative mx-auto flex items-center justify-center">
+      {/* Background glow behind board */}
       <div 
-        className={`absolute inset-0 rounded-2xl transition-all duration-500 blur-2xl opacity-20 -z-10 ${
-          isDarkMode ? "bg-gradient-to-tr from-orange-500 via-pink-500 to-lime-500" : "bg-gradient-to-tr from-orange-400 to-pink-400"
-        }`}
+        className="absolute inset-0 rounded-3xl blur-3xl -z-10"
+        style={{
+          background: isDarkMode 
+            ? "radial-gradient(circle, rgba(255,215,0,0.15) 0%, rgba(255,140,0,0.08) 50%, transparent 70%)"
+            : "radial-gradient(circle, rgba(183,110,121,0.1) 0%, rgba(212,165,116,0.05) 50%, transparent 70%)",
+          transform: "scale(1.3)"
+        }}
       />
 
-      <div className={`grid ${gridColsClass} gap-3 w-full h-full`}>
+      {/* The grid */}
+      <div 
+        className={`grid ${gridGap} p-3 rounded-2xl`}
+        style={{
+          gridTemplateColumns: `repeat(${boardSize}, 1fr)`,
+          backgroundColor: isDarkMode ? "rgba(255,215,0,0.06)" : "rgba(183,110,121,0.05)",
+          border: isDarkMode ? "1px solid rgba(255,215,0,0.15)" : "1px solid rgba(183,110,121,0.12)",
+          backdropFilter: "blur(10px)",
+        }}
+      >
         {board.map((cell, idx) => {
           const isWinningTile = isWinnerCell(idx);
 
@@ -61,104 +73,82 @@ export default function GameBoard({
             <motion.button
               id={`cell-btn-${idx}`}
               key={idx}
-              whileTap={{ scale: enabled && cell === null ? 0.9 : 1 }}
-              whileHover={{ scale: enabled && cell === null ? 1.04 : 1 }}
+              whileTap={{ scale: enabled && cell === null ? 0.92 : 1 }}
+              whileHover={{ scale: enabled && cell === null ? 1.05 : 1 }}
               onClick={() => handleCellTap(idx)}
               disabled={!enabled || cell !== null}
-              className={`relative flex items-center justify-center rounded-2xl border transition-all duration-300 overflow-hidden cursor-pointer ${
-                isWinningTile
-                  ? "animate-pulse border-lime-400 bg-lime-500/15 shadow-[0_0_25px_rgba(132,204,22,0.45)]"
+              className={`${cellSize} relative flex items-center justify-center rounded-xl cursor-pointer transition-all duration-200 overflow-hidden`}
+              style={{
+                backgroundColor: isWinningTile
+                  ? isDarkMode ? "rgba(255,215,0,0.2)" : "rgba(183,110,121,0.15)"
                   : cell !== null
-                    ? isDarkMode
-                      ? "bg-[#1d1411]/80 border-orange-500/20 shadow-[0_4px_12px_rgba(0,0,0,0.5)]"
-                      : "bg-white border-orange-200 shadow-[0_2px_8px_rgba(255,112,67,0.06)]"
-                    : isDarkMode
-                      ? "bg-[#0e0a0a]/90 hover:bg-[#1a1210]/90 border-[#311f19]/80 shadow-[inset_0_2px_4px_rgba(0,0,0,0.5)]"
-                      : "bg-orange-50/45 hover:bg-orange-50/90 border-orange-100 hover:border-orange-300 shadow-[inset_0_1px_2px_rgba(255,112,67,0.02)]"
-              }`}
-              style={{ aspectRatio: "1/1" }}
+                    ? isDarkMode ? "rgba(20,18,15,0.9)" : "rgba(255,255,255,0.9)"
+                    : isDarkMode ? "rgba(15,13,10,0.85)" : "rgba(255,255,255,0.7)",
+                border: isWinningTile
+                  ? isDarkMode ? "2px solid #FFD700" : "2px solid #b76e79"
+                  : isDarkMode ? "1.5px solid rgba(255,215,0,0.25)" : "1.5px solid rgba(183,110,121,0.2)",
+                boxShadow: isWinningTile
+                  ? isDarkMode 
+                    ? "0 0 20px rgba(255,215,0,0.4), 0 0 40px rgba(255,215,0,0.15)" 
+                    : "0 0 20px rgba(183,110,121,0.3)"
+                  : isDarkMode 
+                    ? "inset 0 2px 4px rgba(0,0,0,0.4), 0 2px 8px rgba(0,0,0,0.3)" 
+                    : "inset 0 1px 3px rgba(0,0,0,0.04), 0 1px 4px rgba(0,0,0,0.06)",
+              }}
             >
-              {/* Tile grid symbol animations */}
+              {/* Cell symbol animations */}
               <AnimatePresence mode="wait">
                 {cell === "X" && (
                   <motion.div
-                    initial={{ scale: 0, rotate: -45 }}
-                    animate={{ scale: 1.1, rotate: 0 }}
+                    initial={{ scale: 0, rotate: -90 }}
+                    animate={{ scale: 1, rotate: 0 }}
                     exit={{ scale: 0 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 20 }}
                     className="flex items-center justify-center w-full h-full"
                   >
-                    {/* Animated Neon Cross */}
                     <svg
-                      className="w-2/3 h-2/3"
+                      className="w-3/5 h-3/5"
                       viewBox="0 0 24 24"
                       fill="none"
-                      strokeWidth="3.2"
+                      strokeWidth="3.5"
                       strokeLinecap="round"
                     >
-                      <line
-                        x1="4"
-                        y1="4"
-                        x2="20"
-                        y2="20"
-                        className={
-                          isWinningTile
-                            ? "stroke-lime-400"
-                            : "stroke-orange-500 drop-shadow-[0_0_8px_rgba(255,87,34,0.7)]"
-                        }
-                      />
-                      <line
-                        x1="20"
-                        y1="4"
-                        x2="4"
-                        y2="20"
-                        className={
-                          isWinningTile
-                            ? "stroke-lime-400"
-                            : "stroke-pink-500 drop-shadow-[0_0_8px_rgba(233,30,99,0.7)]"
-                        }
-                      />
+                      <line x1="5" y1="5" x2="19" y2="19" stroke={isDarkMode ? "#FFD700" : "#b76e79"} />
+                      <line x1="19" y1="5" x2="5" y2="19" stroke={isDarkMode ? "#FF8C00" : "#d4a574"} />
                     </svg>
                   </motion.div>
                 )}
 
                 {cell === "O" && (
                   <motion.div
-                    initial={{ scale: 0, rotate: 45 }}
-                    animate={{ scale: 1.1, rotate: 0 }}
+                    initial={{ scale: 0, rotate: 90 }}
+                    animate={{ scale: 1, rotate: 0 }}
                     exit={{ scale: 0 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 20 }}
+                    transition={{ type: "spring", stiffness: 350, damping: 20 }}
                     className="flex items-center justify-center w-full h-full"
                   >
-                    {/* Animated Glowing Ring */}
                     <svg
-                      className="w-2/3 h-2/3"
+                      className="w-3/5 h-3/5"
                       viewBox="0 0 24 24"
                       fill="none"
-                      strokeWidth="3.2"
+                      strokeWidth="3.5"
                       strokeLinecap="round"
                     >
-                      <circle
-                        cx="12"
-                        cy="12"
-                        r="8"
-                        className={
-                          isWinningTile
-                            ? "stroke-lime-400"
-                            : "stroke-lime-500 drop-shadow-[0_0_8px_rgba(50,205,50,0.8)]"
-                        }
-                      />
+                      <circle cx="12" cy="12" r="7.5" stroke={isDarkMode ? "#C0C0C0" : "#c49070"} />
                     </svg>
                   </motion.div>
                 )}
               </AnimatePresence>
 
-              {/* Hover effect grid lines */}
+              {/* Hover highlight for empty cells */}
               {cell === null && enabled && (
                 <div
-                  className={`absolute inset-0 opacity-0 hover:opacity-10 transition-opacity duration-300 ${
-                    isDarkMode ? "bg-gradient-to-tr from-orange-500 to-pink-500" : "bg-gradient-to-tr from-orange-400 to-pink-400"
-                  }`}
+                  className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-200"
+                  style={{
+                    background: isDarkMode
+                      ? "radial-gradient(circle, rgba(255,215,0,0.08) 0%, transparent 70%)"
+                      : "radial-gradient(circle, rgba(183,110,121,0.06) 0%, transparent 70%)"
+                  }}
                 />
               )}
             </motion.button>

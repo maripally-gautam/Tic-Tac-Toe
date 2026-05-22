@@ -1,1 +1,83 @@
 @import "tailwindcss";
+
+/* Custom base styles */
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+html, body {
+  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  overflow: hidden;
+}
+
+/* Hide scrollbar utility */
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+/* Gold shimmer animation */
+@keyframes gold-shimmer {
+  0% { background-position: -200% center; }
+  100% { background-position: 200% center; }
+}
+
+.gold-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #b8860b 0%,
+    #ffd700 25%,
+    #fff8dc 50%,
+    #ffd700 75%,
+    #b8860b 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gold-shimmer 3s linear infinite;
+}
+
+/* Rose gold shimmer for light mode */
+.rose-gold-shimmer-text {
+  background: linear-gradient(
+    90deg,
+    #b76e79 0%,
+    #e8a0b2 25%,
+    #f5d0d6 50%,
+    #e8a0b2 75%,
+    #b76e79 100%
+  );
+  background-size: 200% auto;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  animation: gold-shimmer 3s linear infinite;
+}
+
+/* Floating pulse animation for chat button */
+@keyframes float-pulse {
+  0%, 100% { transform: translateY(0) scale(1); }
+  50% { transform: translateY(-3px) scale(1.05); }
+}
+
+.float-pulse {
+  animation: float-pulse 2s ease-in-out infinite;
+}
+
+/* Gold border glow */
+@keyframes gold-glow {
+  0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.3), 0 0 20px rgba(255, 215, 0, 0.1); }
+  50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5), 0 0 30px rgba(255, 215, 0, 0.2); }
+}
+
+.gold-glow {
+  animation: gold-glow 2s ease-in-out infinite;
+}

@@ -39,7 +39,7 @@ const io = new Server(httpServer, {
   }
 });
 
-const PORT = 3000;
+const PORT = parseInt(process.env.PORT || "8080", 10);
 
 // In-memory room store
 const rooms: Record<string, GameRoom> = {};
