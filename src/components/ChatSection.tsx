@@ -34,6 +34,9 @@ export default function ChatSection({
 
   const unreadCount = chat.length - lastSeenCount;
   const accent = dk ? "#FFD700" : "#b76e79";
+  const accentGradient = dk
+    ? "linear-gradient(135deg, #FFD700, #FF8C00)"
+    : "linear-gradient(135deg, #b76e79, #d4a574)";
 
   const handleSend = (e: React.FormEvent) => {
     e.preventDefault();
@@ -51,20 +54,29 @@ export default function ChatSection({
           id="chat-toggle-btn"
           initial={{ scale: 0 }}
           animate={{ scale: 1 }}
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.12 }}
+          whileTap={{ scale: 0.88 }}
           onClick={() => { playSound("click", soundOn); setIsOpen(true); }}
-          className="fixed bottom-8 right-6 z-40 w-14 h-14 rounded-full flex items-center justify-center cursor-pointer float-pulse"
+          className="fixed z-40 flex items-center justify-center rounded-full cursor-pointer float-pulse"
           style={{
-            background: dk ? "linear-gradient(135deg, #FFD700, #FF8C00)" : "linear-gradient(135deg, #b76e79, #d4a574)",
+            bottom: 28, right: 20,
+            width: 54, height: 54,
+            background: accentGradient,
             color: dk ? "#000" : "#fff",
-            boxShadow: dk ? "0 4px 25px rgba(255,215,0,0.4)" : "0 4px 25px rgba(183,110,121,0.35)",
+            boxShadow: dk ? "0 6px 28px rgba(255,215,0,0.35)" : "0 6px 28px rgba(183,110,121,0.3)",
           }}
         >
-          <MessageSquareCode size={22} />
+          <MessageSquareCode size={21} />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 w-5 h-5 rounded-full flex items-center justify-center text-[9px] font-bold animate-bounce"
-              style={{ background: "#ef4444", color: "#fff", boxShadow: "0 2px 8px rgba(239,68,68,0.4)" }}
+            <span className="absolute flex items-center justify-center rounded-full text-[9px] font-bold"
+              style={{
+                top: -3, right: -3,
+                width: 20, height: 20,
+                background: "#ef4444",
+                color: "#fff",
+                boxShadow: "0 2px 8px rgba(239,68,68,0.4)",
+                animation: "float-pulse 1.5s ease-in-out infinite",
+              }}
             >
               {unreadCount > 9 ? "9+" : unreadCount}
             </span>
@@ -80,50 +92,60 @@ export default function ChatSection({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={{ duration: 0.2 }}
               onClick={() => { playSound("click", soundOn); setIsOpen(false); }}
               className="fixed inset-0 z-40"
-              style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)" }}
+              style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
             />
 
             <motion.div
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", damping: 28, stiffness: 350 }}
+              transition={{ type: "spring", damping: 30, stiffness: 380 }}
               className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl overflow-hidden"
               style={{
                 maxHeight: "55vh",
-                background: dk ? "rgba(12,10,8,0.97)" : "rgba(255,255,255,0.97)",
-                border: `1px solid ${dk ? "rgba(255,215,0,0.15)" : "rgba(183,110,121,0.12)"}`,
+                background: dk ? "rgba(14,11,9,0.97)" : "rgba(255,255,255,0.97)",
+                border: `1px solid ${dk ? "rgba(255,215,0,0.12)" : "rgba(183,110,121,0.1)"}`,
                 borderBottom: "none",
-                backdropFilter: "blur(20px)",
-                boxShadow: dk ? "0 -4px 30px rgba(255,215,0,0.08)" : "0 -4px 30px rgba(183,110,121,0.06)",
+                backdropFilter: "blur(24px)",
+                WebkitBackdropFilter: "blur(24px)",
+                boxShadow: dk ? "0 -6px 36px rgba(0,0,0,0.3)" : "0 -6px 36px rgba(0,0,0,0.06)",
                 color: dk ? "#fff" : "#333",
               }}
             >
               {/* Header */}
-              <div className="flex items-center justify-between p-3 shrink-0"
-                style={{ borderBottom: `1px solid ${dk ? "rgba(255,215,0,0.08)" : "rgba(183,110,121,0.08)"}`, background: dk ? "rgba(255,215,0,0.03)" : "rgba(183,110,121,0.02)" }}
+              <div className="flex items-center justify-between shrink-0"
+                style={{
+                  padding: "12px 16px",
+                  borderBottom: `1px solid ${dk ? "rgba(255,215,0,0.08)" : "rgba(183,110,121,0.06)"}`,
+                  background: dk ? "rgba(255,215,0,0.03)" : "rgba(183,110,121,0.02)"
+                }}
               >
-                <div className="flex items-center gap-2">
-                  <MessageSquareCode size={16} style={{ color: accent }} />
+                <div className="flex items-center" style={{ gap: 8 }}>
+                  <MessageSquareCode size={15} style={{ color: accent }} />
                   <span className="text-xs font-bold uppercase tracking-wider">Match Chat</span>
                 </div>
-                <button
+                <motion.button
                   id="chat-close-btn"
+                  whileHover={{ scale: 1.15, rotate: 90 }}
+                  whileTap={{ scale: 0.9 }}
                   onClick={() => { playSound("click", soundOn); setIsOpen(false); }}
-                  className="p-1.5 rounded-full cursor-pointer"
-                  style={{ color: dk ? "#888" : "#999" }}
+                  className="flex items-center justify-center rounded-full cursor-pointer"
+                  style={{ width: 30, height: 30, color: dk ? "#888" : "#999" }}
                 >
-                  <X size={16} />
-                </button>
+                  <X size={15} />
+                </motion.button>
               </div>
 
               {/* Messages */}
-              <div className="flex-1 overflow-y-auto p-3 space-y-2 scrollbar-hide">
+              <div className="flex-1 overflow-y-auto scrollbar-hide"
+                style={{ padding: "12px 14px", display: "flex", flexDirection: "column", gap: 8 }}
+              >
                 {chat.length === 0 ? (
-                  <div className="flex items-center justify-center py-10">
-                    <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: dk ? "rgba(255,215,0,0.3)" : "rgba(183,110,121,0.35)" }}>
+                  <div className="flex items-center justify-center" style={{ padding: "40px 0" }}>
+                    <p className="text-[10px] font-mono uppercase tracking-wider" style={{ color: dk ? "rgba(255,215,0,0.25)" : "rgba(183,110,121,0.3)" }}>
                       Send a message to your opponent!
                     </p>
                   </div>
@@ -133,25 +155,35 @@ export default function ChatSection({
                     return (
                       <motion.div
                         key={i}
-                        initial={{ scale: 0.95, opacity: 0, y: 5 }}
+                        initial={{ scale: 0.95, opacity: 0, y: 6 }}
                         animate={{ scale: 1, opacity: 1, y: 0 }}
+                        transition={{ duration: 0.2 }}
                         className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}
                       >
-                        <div className="max-w-[75%] p-2.5 rounded-2xl text-xs leading-relaxed"
+                        <div className="text-xs leading-relaxed"
                           style={{
+                            maxWidth: "75%",
+                            padding: "10px 14px",
+                            borderRadius: 16,
                             background: isMe
-                              ? (dk ? "linear-gradient(135deg, #FFD700, #FF8C00)" : "linear-gradient(135deg, #b76e79, #d4a574)")
-                              : (dk ? "rgba(25,20,15,0.9)" : "rgba(245,240,236,0.9)"),
+                              ? accentGradient
+                              : (dk ? "rgba(28,22,18,0.9)" : "rgba(245,240,236,0.9)"),
                             color: isMe ? (dk ? "#000" : "#fff") : (dk ? "#eee" : "#333"),
-                            border: isMe ? "none" : `1px solid ${dk ? "rgba(255,215,0,0.1)" : "rgba(183,110,121,0.08)"}`,
-                            borderTopRightRadius: isMe ? "4px" : undefined,
-                            borderTopLeftRadius: isMe ? undefined : "4px",
+                            border: isMe ? "none" : `1px solid ${dk ? "rgba(255,215,0,0.08)" : "rgba(183,110,121,0.06)"}`,
+                            borderTopRightRadius: isMe ? 4 : 16,
+                            borderTopLeftRadius: isMe ? 16 : 4,
                           }}
                         >
                           {msg.text}
                         </div>
-                        <span className="text-[8px] mt-1 uppercase tracking-widest px-1 font-mono"
-                          style={{ color: dk ? "rgba(255,215,0,0.25)" : "rgba(183,110,121,0.3)" }}
+                        <span className="font-mono uppercase tracking-widest"
+                          style={{
+                            fontSize: 8,
+                            marginTop: 4,
+                            paddingLeft: 4,
+                            paddingRight: 4,
+                            color: dk ? "rgba(255,215,0,0.2)" : "rgba(183,110,121,0.25)"
+                          }}
                         >
                           {isMe ? "YOU" : `P${msg.sender}`} • {msg.timestamp}
                         </span>
@@ -163,8 +195,12 @@ export default function ChatSection({
               </div>
 
               {/* Input */}
-              <form onSubmit={handleSend} className="flex p-2.5 gap-2 shrink-0"
-                style={{ borderTop: `1px solid ${dk ? "rgba(255,215,0,0.08)" : "rgba(183,110,121,0.08)"}` }}
+              <form onSubmit={handleSend} className="flex shrink-0"
+                style={{
+                  padding: "10px 12px",
+                  gap: 8,
+                  borderTop: `1px solid ${dk ? "rgba(255,215,0,0.06)" : "rgba(183,110,121,0.06)"}`,
+                }}
               >
                 <input
                   id="chat-input"
@@ -173,20 +209,27 @@ export default function ChatSection({
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
                   maxLength={80}
-                  className="flex-1 text-xs px-3 py-2.5 rounded-xl outline-none bg-transparent"
+                  className="flex-1 text-xs rounded-xl outline-none bg-transparent"
                   style={{
-                    border: `1px solid ${dk ? "rgba(255,215,0,0.15)" : "rgba(183,110,121,0.12)"}`,
+                    padding: "10px 14px",
+                    border: `1px solid ${dk ? "rgba(255,215,0,0.12)" : "rgba(183,110,121,0.1)"}`,
                     color: dk ? "#eee" : "#333",
                   }}
                 />
-                <button
+                <motion.button
                   id="chat-send-btn"
                   type="submit"
-                  className="p-2.5 rounded-xl cursor-pointer"
-                  style={{ background: accent, color: dk ? "#000" : "#fff" }}
+                  whileHover={{ scale: 1.08 }}
+                  whileTap={{ scale: 0.92 }}
+                  className="flex items-center justify-center rounded-xl cursor-pointer"
+                  style={{
+                    width: 40, height: 40,
+                    background: accent,
+                    color: dk ? "#000" : "#fff",
+                  }}
                 >
                   <Send size={14} />
-                </button>
+                </motion.button>
               </form>
             </motion.div>
           </>

@@ -1,6 +1,6 @@
 @import "tailwindcss";
 
-/* Custom base styles */
+/* ─── Base Reset & Typography ─── */
 * {
   margin: 0;
   padding: 0;
@@ -12,9 +12,16 @@ html, body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
+  height: 100%;
+  width: 100%;
 }
 
-/* Hide scrollbar utility */
+#root {
+  height: 100%;
+  width: 100%;
+}
+
+/* ─── Scrollbar Hide ─── */
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
@@ -23,7 +30,7 @@ html, body {
   scrollbar-width: none;
 }
 
-/* Gold shimmer animation */
+/* ─── Gold shimmer animation ─── */
 @keyframes gold-shimmer {
   0% { background-position: -200% center; }
   100% { background-position: 200% center; }
@@ -45,14 +52,14 @@ html, body {
   animation: gold-shimmer 3s linear infinite;
 }
 
-/* Rose gold shimmer for light mode */
+/* ─── Rose gold shimmer for light mode ─── */
 .rose-gold-shimmer-text {
   background: linear-gradient(
     90deg,
     #b76e79 0%,
-    #e8a0b2 25%,
-    #f5d0d6 50%,
-    #e8a0b2 75%,
+    #d4a0aa 25%,
+    #f0c8ce 50%,
+    #d4a0aa 75%,
     #b76e79 100%
   );
   background-size: 200% auto;
@@ -62,22 +69,91 @@ html, body {
   animation: gold-shimmer 3s linear infinite;
 }
 
-/* Floating pulse animation for chat button */
+/* ─── Floating pulse for chat FAB ─── */
 @keyframes float-pulse {
   0%, 100% { transform: translateY(0) scale(1); }
-  50% { transform: translateY(-3px) scale(1.05); }
+  50% { transform: translateY(-4px) scale(1.06); }
 }
 
 .float-pulse {
-  animation: float-pulse 2s ease-in-out infinite;
+  animation: float-pulse 2.2s ease-in-out infinite;
 }
 
-/* Gold border glow */
+/* ─── Gold glow border ─── */
 @keyframes gold-glow {
-  0%, 100% { box-shadow: 0 0 8px rgba(255, 215, 0, 0.3), 0 0 20px rgba(255, 215, 0, 0.1); }
-  50% { box-shadow: 0 0 15px rgba(255, 215, 0, 0.5), 0 0 30px rgba(255, 215, 0, 0.2); }
+  0%, 100% { box-shadow: 0 0 6px rgba(255, 215, 0, 0.2), 0 0 16px rgba(255, 215, 0, 0.08); }
+  50% { box-shadow: 0 0 12px rgba(255, 215, 0, 0.35), 0 0 24px rgba(255, 215, 0, 0.12); }
 }
 
 .gold-glow {
   animation: gold-glow 2s ease-in-out infinite;
+}
+
+/* ─── Winning cell pulsing glow ─── */
+@keyframes win-cell-pulse {
+  0%, 100% { transform: scale(1); filter: brightness(1); }
+  50% { transform: scale(1.06); filter: brightness(1.15); }
+}
+
+.win-cell-pulse {
+  animation: win-cell-pulse 0.8s ease-in-out infinite;
+}
+
+/* ─── Spinner rotation ─── */
+@keyframes spin-loader {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+
+.spin-loader {
+  animation: spin-loader 0.9s linear infinite;
+}
+
+/* ─── Subtle fade-up entrance for status text ─── */
+@keyframes fade-up {
+  from { opacity: 0; transform: translateY(8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.fade-up {
+  animation: fade-up 0.4s ease-out both;
+}
+
+/* ─── Glow pulse for the logo on home screen ─── */
+@keyframes logo-glow-pulse {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(255,215,0,0.3)); }
+  50% { filter: drop-shadow(0 0 14px rgba(255,215,0,0.45)); }
+}
+
+.logo-glow-dark {
+  animation: logo-glow-pulse 3s ease-in-out infinite;
+}
+
+@keyframes logo-glow-pulse-light {
+  0%, 100% { filter: drop-shadow(0 0 6px rgba(183,110,121,0.2)); }
+  50% { filter: drop-shadow(0 0 14px rgba(183,110,121,0.4)); }
+}
+
+.logo-glow-light {
+  animation: logo-glow-pulse-light 3s ease-in-out infinite;
+}
+
+/* ─── Touch / mobile UX improvements ─── */
+button, [role="button"] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+input {
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ─── Selection color ─── */
+::selection {
+  background: rgba(255, 215, 0, 0.3);
+  color: inherit;
+}
+
+.dark ::selection {
+  background: rgba(255, 215, 0, 0.2);
 }

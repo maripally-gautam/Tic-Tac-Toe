@@ -41,59 +41,71 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
+            transition={{ duration: 0.25 }}
             onClick={() => { playSound("click", settings.soundOn); onClose(); }}
             className="fixed inset-0 z-40"
-            style={{ background: "rgba(0,0,0,0.6)", backdropFilter: "blur(8px)" }}
+            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
           />
 
           {/* Modal */}
           <motion.div
-            initial={{ y: -60, opacity: 0, scale: 0.95 }}
+            initial={{ y: -50, opacity: 0, scale: 0.94 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
-            exit={{ y: -60, opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", damping: 25, stiffness: 350 }}
-            className="fixed top-6 left-4 right-4 z-50 p-6 rounded-2xl max-w-sm mx-auto"
+            exit={{ y: -50, opacity: 0, scale: 0.94 }}
+            transition={{ type: "spring", damping: 26, stiffness: 380 }}
+            className="fixed z-50 rounded-2xl"
             style={{
-              background: dk ? "rgba(15,12,10,0.95)" : "rgba(255,255,255,0.97)",
-              border: `1px solid ${dk ? "rgba(255,215,0,0.2)" : "rgba(183,110,121,0.18)"}`,
-              boxShadow: dk ? "0 12px 40px rgba(255,215,0,0.1)" : "0 12px 40px rgba(183,110,121,0.1)",
-              backdropFilter: "blur(20px)",
+              top: 20,
+              left: 16, right: 16,
+              maxWidth: 380,
+              margin: "0 auto",
+              padding: 24,
+              background: dk ? "rgba(16,12,10,0.96)" : "rgba(255,255,255,0.97)",
+              border: `1.5px solid ${dk ? "rgba(255,215,0,0.18)" : "rgba(183,110,121,0.15)"}`,
+              boxShadow: dk
+                ? "0 16px 50px rgba(0,0,0,0.5), 0 4px 16px rgba(255,215,0,0.08)"
+                : "0 16px 50px rgba(0,0,0,0.1), 0 4px 16px rgba(183,110,121,0.06)",
+              backdropFilter: "blur(24px)",
+              WebkitBackdropFilter: "blur(24px)",
               color: dk ? "#fff" : "#333",
             }}
           >
             {/* Header */}
-            <div className="flex items-center justify-between pb-4 mb-5"
-              style={{ borderBottom: `1px solid ${dk ? "rgba(255,215,0,0.1)" : "rgba(183,110,121,0.1)"}` }}
+            <div className="flex items-center justify-between"
+              style={{ paddingBottom: 16, marginBottom: 24, borderBottom: `1px solid ${dk ? "rgba(255,215,0,0.1)" : "rgba(183,110,121,0.1)"}` }}
             >
               <h2 className={`text-xl uppercase font-bold tracking-tight ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}>
                 Settings
               </h2>
-              <button
+              <motion.button
                 id="close-settings-btn"
+                whileHover={{ scale: 1.15, rotate: 90 }}
+                whileTap={{ scale: 0.9 }}
                 onClick={() => { playSound("click", settings.soundOn); onClose(); }}
-                className="p-2 rounded-full cursor-pointer"
-                style={{ color: dk ? "#ccc" : "#666" }}
+                className="flex items-center justify-center rounded-full cursor-pointer"
+                style={{ width: 34, height: 34, color: dk ? "#ccc" : "#666", background: dk ? "rgba(255,255,255,0.05)" : "rgba(0,0,0,0.03)" }}
               >
-                <X size={18} />
-              </button>
+                <X size={16} />
+              </motion.button>
             </div>
 
-            <div className="space-y-6">
+            <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
               {/* Theme */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium flex items-center gap-2">
+                <span className="text-sm font-medium flex items-center" style={{ gap: 10 }}>
                   {dk ? <Moon size={16} style={{ color: accent }} /> : <Sun size={16} style={{ color: accent }} />}
                   Theme
                 </span>
                 <button
                   id="theme-toggle"
                   onClick={toggleTheme}
-                  className="relative w-14 h-7 rounded-full p-1 cursor-pointer transition-colors duration-300"
-                  style={{ background: accent }}
+                  className="relative rounded-full cursor-pointer"
+                  style={{ width: 52, height: 28, padding: 3, background: accent, transition: "background 0.3s" }}
                 >
                   <motion.div
-                    className="w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md"
-                    animate={{ x: dk ? 28 : 0 }}
+                    className="bg-white rounded-full flex items-center justify-center"
+                    style={{ width: 22, height: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}
+                    animate={{ x: dk ? 24 : 0 }}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
                     {dk ? <Moon size={10} style={{ color: "#B8860B" }} /> : <Sun size={10} style={{ color: accent }} />}
@@ -103,7 +115,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
 
               {/* Board Size */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium flex items-center gap-2">
+                <span className="text-sm font-medium flex items-center" style={{ gap: 10 }}>
                   <Grid3X3 size={16} style={{ color: accent }} />
                   Board Size
                 </span>
@@ -115,8 +127,14 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
                       key={size}
                       id={`board-size-${size}-btn`}
                       onClick={() => setBoardSize(size)}
-                      className="px-4 py-1.5 text-xs uppercase font-bold flex items-center gap-1 cursor-pointer transition-all"
+                      className="flex items-center cursor-pointer"
                       style={{
+                        padding: "7px 14px",
+                        gap: 5,
+                        fontSize: 12,
+                        fontWeight: 700,
+                        textTransform: "uppercase",
+                        transition: "all 0.2s",
                         background: settings.boardSize === size
                           ? (dk ? "linear-gradient(135deg, #FFD700, #FF8C00)" : "linear-gradient(135deg, #b76e79, #d4a574)")
                           : "transparent",
@@ -134,9 +152,9 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
 
               {/* Sound */}
               <div className="flex items-center justify-between">
-                <span className="text-sm font-medium flex items-center gap-2">
+                <span className="text-sm font-medium flex items-center" style={{ gap: 10 }}>
                   {settings.soundOn
-                    ? <Volume2 size={16} style={{ color: accent }} className="animate-pulse" />
+                    ? <Volume2 size={16} style={{ color: accent }} />
                     : <VolumeX size={16} style={{ color: "#999" }} />
                   }
                   Sound
@@ -144,12 +162,13 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
                 <button
                   id="sound-toggle"
                   onClick={toggleSound}
-                  className="relative w-14 h-7 rounded-full p-1 cursor-pointer transition-colors duration-300"
-                  style={{ background: settings.soundOn ? accent : "#666" }}
+                  className="relative rounded-full cursor-pointer"
+                  style={{ width: 52, height: 28, padding: 3, background: settings.soundOn ? accent : "#555", transition: "background 0.3s" }}
                 >
                   <motion.div
-                    className="w-5 h-5 bg-white rounded-full flex items-center justify-center shadow-md"
-                    animate={{ x: settings.soundOn ? 28 : 0 }}
+                    className="bg-white rounded-full flex items-center justify-center"
+                    style={{ width: 22, height: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}
+                    animate={{ x: settings.soundOn ? 24 : 0 }}
                     transition={{ type: "spring", stiffness: 500, damping: 30 }}
                   >
                     {settings.soundOn
@@ -159,14 +178,6 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
                   </motion.div>
                 </button>
               </div>
-            </div>
-
-            <div className="text-center mt-6 pt-4"
-              style={{ borderTop: `1px solid ${dk ? "rgba(255,215,0,0.06)" : "rgba(183,110,121,0.06)"}` }}
-            >
-              <span className="font-mono text-[9px] uppercase" style={{ color: dk ? "rgba(255,215,0,0.3)" : "rgba(183,110,121,0.3)" }}>
-                Arcade Engine v1.0
-              </span>
             </div>
           </motion.div>
         </>

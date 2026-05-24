@@ -13,9 +13,9 @@ import {
   Check, 
   ArrowLeft, 
   RefreshCw, 
-  Users, 
-  Wifi,
-  WifiOff
+  Users,
+  Trophy,
+  Swords,
 } from "lucide-react";
 import { io, Socket } from "socket.io-client";
 
@@ -37,6 +37,10 @@ export default function App() {
   const [screen, setScreen] = useState<"home" | "offline" | "online_lobby" | "online_active">("home");
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
+  // Full-screen party effect state
+  const [showPartyEffect, setShowPartyEffect] = useState(false);
+  const [partyMessage, setPartyMessage] = useState("");
+
   // Offline state
   const [offlineState, setOfflineState] = useState<LocalGameState>({
     board: Array(9).fill(null),
@@ -53,8 +57,32 @@ export default function App() {
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [systemAlert, setSystemAlert] = useState<string | null>(null);
+  const partyTimeoutRef = useRef<number | null>(null);
+  const postMatchTimeoutRef = useRef<number | null>(null);
+  const isNavigatingHistoryRef = useRef(false);
 
   const dk = settings.isDarkMode;
+
+  // ─── Full-screen party trigger ───
+  const triggerParty = (msg: string) => {
+    if (partyTimeoutRef.current) window.clearTimeout(partyTimeoutRef.current);
+    setPartyMessage(msg);
+    setShowPartyEffect(true);
+    partyTimeoutRef.current = window.setTimeout(() => {
+      setShowPartyEffect(false);
+      setPartyMessage("");
+      partyTimeoutRef.current = null;
+    }, 3000);
+  };
+
+  const dismissParty = () => {
+    if (partyTimeoutRef.current) {
+      window.clearTimeout(partyTimeoutRef.current);
+      partyTimeoutRef.current = null;
+    }
+    setShowPartyEffect(false);
+    setPartyMessage("");
+  };
 
   // Socket connection
   const connectSocketServer = () => {
@@ -79,18 +107,34 @@ export default function App() {
     s.on("roomCreated", (data: { roomId: string; roomState: OnlineRoomState }) => {
       setOnlineRoom(data.roomState);
       setScreen("online_active");
+      setJoinCodeInput(""); // Clear the join code input
       playSound("lobby_joined", settings.soundOn);
     });
 
     s.on("roomUpdated", (room: OnlineRoomState) => {
       setOnlineRoom(room);
       setScreen("online_active");
+      setJoinCodeInput(""); // Clear the join code input
       if (room.state === "ended") {
         const myPlayer = room.players.find(p => p.id === s.id);
-        if (room.winner === "draw") playSound("draw", settings.soundOn);
-        else if (myPlayer && room.winner === myPlayer.symbol) playSound("win", settings.soundOn);
-        else playSound("lose", settings.soundOn);
-        setTimeout(() => { setScreen("home"); setOnlineRoom(null); }, 5000);
+        if (room.winner === "draw") {
+          playSound("draw", settings.soundOn);
+          triggerParty("Match Draw!");
+        } else if (myPlayer && room.winner === myPlayer.symbol) {
+          playSound("win", settings.soundOn);
+          triggerParty(`Player ${room.winner} Wins! 🏆`);
+        } else {
+          playSound("lose", settings.soundOn);
+          triggerParty(`Player ${room.winner} Wins!`);
+        }
+        // Instantly go home after party effect
+        postMatchTimeoutRef.current = window.setTimeout(() => {
+          setScreen("home");
+          setOnlineRoom(null);
+          if (s) s.disconnect();
+          setSocket(null);
+          postMatchTimeoutRef.current = null;
+        }, 2800);
       }
     });
 
@@ -102,7 +146,11 @@ export default function App() {
       setSystemAlert(data.msg);
       setOnlineRoom(data.roomState);
       playSound("lose", settings.soundOn);
-      setTimeout(() => setSystemAlert(null), 4000);
+      setTimeout(() => {
+        setSystemAlert(null);
+        setScreen("home");
+        setOnlineRoom(null);
+      }, 3000);
     });
 
     s.on("errorMsg", (msg: string) => {
@@ -122,8 +170,45 @@ export default function App() {
   };
 
   useEffect(() => {
-    return () => { if (socket) socket.disconnect(); };
+    return () => {
+      if (socket) socket.disconnect();
+      if (partyTimeoutRef.current) window.clearTimeout(partyTimeoutRef.current);
+      if (postMatchTimeoutRef.current) window.clearTimeout(postMatchTimeoutRef.current);
+    };
   }, [socket]);
+
+  useEffect(() => {
+    const onPopState = () => {
+      isNavigatingHistoryRef.current = true;
+      if (screen === "online_active") {
+        setOnlineRoom(null);
+        setScreen("online_lobby");
+      } else if (screen === "online_lobby") {
+        if (socket) socket.disconnect();
+        setSocket(null);
+        setScreen("home");
+      } else if (screen === "offline") {
+        dismissParty();
+        resetOfflineGame();
+        setScreen("home");
+      }
+    };
+
+    window.addEventListener("popstate", onPopState);
+    return () => window.removeEventListener("popstate", onPopState);
+  }, [screen, socket, settings.boardSize]);
+
+  useEffect(() => {
+    if (screen === "home") {
+      isNavigatingHistoryRef.current = false;
+      return;
+    }
+    if (isNavigatingHistoryRef.current) {
+      isNavigatingHistoryRef.current = false;
+      return;
+    }
+    window.history.pushState({ screen }, "", window.location.href);
+  }, [screen]);
 
   useEffect(() => { resetOfflineGame(); }, [settings.boardSize]);
 
@@ -131,10 +216,10 @@ export default function App() {
     const root = document.documentElement;
     if (dk) {
       root.classList.add("dark");
-      root.style.backgroundColor = "#0a0605";
+      root.style.backgroundColor = "#0c0908";
     } else {
       root.classList.remove("dark");
-      root.style.backgroundColor = "#fdf8f5";
+      root.style.backgroundColor = "#faf5f2";
     }
   }, [dk]);
 
@@ -159,14 +244,29 @@ export default function App() {
     const testMatch = checkOfflineResult(newBoard);
     if (testMatch) {
       setOfflineState({ board: newBoard, turn: offlineState.turn, winner: testMatch.winner, winningLine: testMatch.line });
-      testMatch.winner === "draw" ? playSound("draw", settings.soundOn) : playSound("win", settings.soundOn);
-      setTimeout(() => { setScreen("home"); resetOfflineGame(); }, 4000);
+      if (testMatch.winner === "draw") {
+        playSound("draw", settings.soundOn);
+        triggerParty("Match Draw!");
+      } else {
+        playSound("win", settings.soundOn);
+        triggerParty(`Player ${testMatch.winner} Wins! 🏆`);
+      }
+      postMatchTimeoutRef.current = window.setTimeout(() => {
+        setScreen("home");
+        resetOfflineGame();
+        postMatchTimeoutRef.current = null;
+      }, 3000);
     } else {
       setOfflineState({ board: newBoard, turn: offlineState.turn === "X" ? "O" : "X", winner: null, winningLine: null });
     }
   };
 
   const resetOfflineGame = () => {
+    dismissParty();
+    if (postMatchTimeoutRef.current) {
+      window.clearTimeout(postMatchTimeoutRef.current);
+      postMatchTimeoutRef.current = null;
+    }
     setOfflineState({ board: Array(settings.boardSize * settings.boardSize).fill(null), turn: "X", winner: null, winningLine: null });
   };
 
@@ -204,87 +304,160 @@ export default function App() {
     setTimeout(() => setCopiedCode(false), 2000);
   };
 
+  // ─── Navigation handler ───
+  // From offline → home
+  // From online_lobby → home (and disconnect)
+  // From online_active → online_lobby (and disconnect from room)
+  const handleBackPress = () => {
+    playSound("click", settings.soundOn);
+    if (screen === "online_active") {
+      // Go back to online lobby
+      setOnlineRoom(null);
+      setScreen("online_lobby");
+    } else if (screen === "online_lobby") {
+      // Go back to home and disconnect
+      if (socket) socket.disconnect();
+      setSocket(null);
+      setScreen("home");
+    } else {
+      // Offline → home
+      setScreen("home");
+      if (screen === "offline") {
+        dismissParty();
+        resetOfflineGame();
+      }
+    }
+  };
+
+  // ─── Shared accent helpers ───
+  const accent = dk ? "#FFD700" : "#b76e79";
+  const accentSecondary = dk ? "#FF8C00" : "#d4a574";
+  const accentGradient = dk
+    ? "linear-gradient(135deg, #FFD700, #FF8C00)"
+    : "linear-gradient(135deg, #b76e79, #d4a574)";
+
   return (
-    <div className="relative min-h-[100dvh] w-full flex flex-col overflow-hidden select-none"
-      style={{ background: dk ? "#0a0605" : "#fdf8f5" }}
+    <div className="relative w-full flex flex-col overflow-hidden select-none"
+      style={{ background: dk ? "#0c0908" : "#faf5f2", height: "100dvh" }}
     >
-      {/* Animated particle background — full screen */}
+      {/* Animated particle background */}
       <ParticleBackground isDarkMode={dk} />
 
-      {/* Top bar */}
-      <div className="relative z-10 flex items-center justify-between px-5 py-3 shrink-0"
+      {/* ═══ Full-Screen Party Effect ═══ */}
+      <AnimatePresence>
+        {showPartyEffect && (
+          <>
+            <ParticleExplosion />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.6 }}
+              transition={{ type: "spring", damping: 15, stiffness: 200 }}
+              className="fixed inset-0 flex items-center justify-center pointer-events-none"
+              style={{ zIndex: 110 }}
+            >
+              <motion.div
+                animate={{ scale: [1, 1.08, 1] }}
+                transition={{ repeat: Infinity, duration: 0.8 }}
+                className="text-center"
+                style={{ padding: "28px 40px", borderRadius: 24 }}
+              >
+                <div className="flex items-center justify-center" style={{ gap: 12, marginBottom: 8 }}>
+                  <Trophy size={32} style={{ color: "#FFD700", filter: "drop-shadow(0 0 12px rgba(255,215,0,0.6))" }} />
+                </div>
+                <h1 className={`text-3xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}
+                  style={{ textShadow: dk ? "0 0 30px rgba(255,215,0,0.4)" : "0 0 30px rgba(183,110,121,0.3)" }}
+                >
+                  {partyMessage}
+                </h1>
+              </motion.div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      {/* ── Top Header Bar ── */}
+      <header className="relative z-10 flex items-center justify-between shrink-0"
         style={{ 
-          borderBottom: dk ? "1px solid rgba(255,215,0,0.08)" : "1px solid rgba(183,110,121,0.08)",
-          background: dk ? "rgba(10,6,5,0.6)" : "rgba(253,248,245,0.7)",
-          backdropFilter: "blur(12px)",
+          padding: "14px 20px",
+          borderBottom: dk ? "1px solid rgba(255,215,0,0.06)" : "1px solid rgba(183,110,121,0.06)",
+          background: dk ? "rgba(12,9,8,0.7)" : "rgba(250,245,242,0.8)",
+          backdropFilter: "blur(16px)",
+          WebkitBackdropFilter: "blur(16px)",
         }}
       >
         <div className="flex items-center gap-3">
           {screen !== "home" ? (
             <motion.button
               id="back-btn"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.9 }}
-              onClick={() => {
-                playSound("click", settings.soundOn);
-                setScreen("home");
-                if (socket) socket.disconnect();
-              }}
-              className="p-2 rounded-full cursor-pointer"
+              whileHover={{ scale: 1.12 }}
+              whileTap={{ scale: 0.88 }}
+              onClick={handleBackPress}
+              className="flex items-center justify-center rounded-full cursor-pointer"
               style={{
-                border: dk ? "1px solid rgba(255,215,0,0.2)" : "1px solid rgba(183,110,121,0.15)",
+                width: 38, height: 38,
+                border: dk ? "1px solid rgba(255,215,0,0.15)" : "1px solid rgba(183,110,121,0.12)",
                 background: dk ? "rgba(255,215,0,0.05)" : "rgba(183,110,121,0.04)",
               }}
             >
-              <ArrowLeft size={18} style={{ color: dk ? "#FFD700" : "#b76e79" }} />
+              <ArrowLeft size={17} style={{ color: accent }} />
             </motion.button>
           ) : (
-            <div className="p-2">
-              <Gamepad2 size={20} style={{ color: dk ? "#FFD700" : "#b76e79" }} />
-            </div>
+            <motion.div 
+              animate={{ rotate: [0, 5, -5, 0] }}
+              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
+              className="flex items-center justify-center" 
+              style={{ width: 38, height: 38 }}
+            >
+              <Gamepad2 size={20} className={dk ? "logo-glow-dark" : "logo-glow-light"} style={{ color: accent }} />
+            </motion.div>
           )}
 
-          {/* Connection status */}
-          <div className="flex items-center gap-1.5">
-            {socket?.connected ? (
-              <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider" style={{ color: dk ? "#FFD700" : "#b76e79" }}>
-                <Wifi size={11} className="animate-pulse" /> ONLINE
-              </span>
-            ) : (
-              <span className="flex items-center gap-1 text-[10px] font-mono uppercase tracking-wider" style={{ color: "rgba(150,150,150,0.7)" }}>
-                <WifiOff size={11} /> OFFLINE
-              </span>
-            )}
-          </div>
+          <motion.span 
+            initial={{ opacity: 0, x: -10 }}
+            animate={{ opacity: 1, x: 0 }}
+            className="text-xs font-bold uppercase tracking-[0.15em]" 
+            style={{ color: dk ? "rgba(255,215,0,0.6)" : "rgba(183,110,121,0.6)" }}
+          >
+            Tic Tac Toe
+          </motion.span>
         </div>
 
         <motion.button
           id="settings-btn"
-          whileHover={{ scale: 1.1 }}
-          whileTap={{ scale: 0.9 }}
+          whileHover={{ scale: 1.12, rotate: 45 }}
+          whileTap={{ scale: 0.88 }}
           onClick={() => { playSound("click", settings.soundOn); setIsSettingsOpen(true); }}
-          className="p-2 rounded-full cursor-pointer"
+          className="flex items-center justify-center rounded-full cursor-pointer"
           style={{
-            border: dk ? "1px solid rgba(255,215,0,0.2)" : "1px solid rgba(183,110,121,0.15)",
+            width: 38, height: 38,
+            border: dk ? "1px solid rgba(255,215,0,0.15)" : "1px solid rgba(183,110,121,0.12)",
             background: dk ? "rgba(255,215,0,0.05)" : "rgba(183,110,121,0.04)",
           }}
         >
-          <Settings size={18} style={{ color: dk ? "#FFD700" : "#b76e79" }} />
+          <Settings size={17} style={{ color: accent }} />
         </motion.button>
-      </div>
+      </header>
 
-      {/* System alerts */}
+      {/* ── System Alerts ── */}
       <AnimatePresence>
         {systemAlert && (
           <motion.div
-            initial={{ y: -30, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: -30, opacity: 0 }}
-            className="fixed top-16 left-4 right-4 z-50 p-3 rounded-xl text-center text-sm font-medium shadow-lg"
+            initial={{ y: -40, opacity: 0, scale: 0.95 }}
+            animate={{ y: 0, opacity: 1, scale: 1 }}
+            exit={{ y: -40, opacity: 0, scale: 0.95 }}
+            transition={{ type: "spring", damping: 22, stiffness: 300 }}
+            className="fixed z-50 rounded-2xl text-center text-sm font-semibold"
             style={{
+              top: 72,
+              left: 16, right: 16,
+              padding: "14px 18px",
+              maxWidth: 400,
+              margin: "0 auto",
               background: dk ? "rgba(255,215,0,0.95)" : "rgba(183,110,121,0.95)",
               color: dk ? "#000" : "#fff",
-              backdropFilter: "blur(8px)",
+              backdropFilter: "blur(10px)",
+              boxShadow: dk ? "0 8px 32px rgba(255,215,0,0.25)" : "0 8px 32px rgba(183,110,121,0.2)",
             }}
           >
             {systemAlert}
@@ -292,61 +465,86 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Main content area */}
-      <div className="relative z-10 flex-1 flex flex-col items-center justify-center px-6 py-4 overflow-y-auto scrollbar-hide">
+      {/* ── Main Content Area ── */}
+      <main className="relative z-10 flex-1 flex flex-col items-center justify-center overflow-y-auto scrollbar-hide"
+        style={{ padding: "24px 20px" }}
+      >
         <AnimatePresence mode="wait">
 
-          {/* ===== HOME SCREEN ===== */}
+          {/* ════════ HOME SCREEN ════════ */}
           {screen === "home" && (
             <motion.div
               key="home"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              transition={{ duration: 0.35 }}
-              className="flex flex-col items-center text-center space-y-8 w-full max-w-sm"
+              initial={{ opacity: 0, y: 30, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -30, scale: 0.97 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col items-center text-center w-full"
+              style={{ maxWidth: 340, gap: 36 }}
             >
               {/* Logo */}
               <motion.div
                 animate={{ scale: [1, 1.04, 1] }}
-                transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
-                className="p-5 rounded-3xl"
+                transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
+                className="flex items-center justify-center rounded-3xl"
                 style={{
+                  width: 96, height: 96,
                   background: dk
-                    ? "linear-gradient(135deg, rgba(255,215,0,0.12) 0%, rgba(255,140,0,0.08) 100%)"
-                    : "linear-gradient(135deg, rgba(183,110,121,0.1) 0%, rgba(212,165,116,0.06) 100%)",
-                  border: dk ? "1px solid rgba(255,215,0,0.15)" : "1px solid rgba(183,110,121,0.12)",
+                    ? "linear-gradient(135deg, rgba(255,215,0,0.1) 0%, rgba(255,140,0,0.06) 100%)"
+                    : "linear-gradient(135deg, rgba(183,110,121,0.1) 0%, rgba(212,165,116,0.05) 100%)",
+                  border: dk ? "1.5px solid rgba(255,215,0,0.14)" : "1.5px solid rgba(183,110,121,0.12)",
+                  boxShadow: dk
+                    ? "0 8px 40px rgba(255,215,0,0.08), inset 0 1px 0 rgba(255,215,0,0.08)"
+                    : "0 8px 40px rgba(183,110,121,0.06), inset 0 1px 0 rgba(183,110,121,0.05)",
                 }}
               >
-                <Gamepad2 size={52} style={{ color: dk ? "#FFD700" : "#b76e79", filter: dk ? "drop-shadow(0 0 12px rgba(255,215,0,0.5))" : "drop-shadow(0 0 10px rgba(183,110,121,0.35))" }} />
+                <Gamepad2
+                  size={48}
+                  className={dk ? "logo-glow-dark" : "logo-glow-light"}
+                  style={{ color: accent }}
+                />
               </motion.div>
 
               {/* Title */}
               <div>
-                <h1 className="text-4xl font-extrabold uppercase tracking-tight leading-tight">
+                <motion.h1 
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.15 }}
+                  className="text-4xl font-extrabold uppercase tracking-tight leading-none"
+                >
                   <span className={dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}>
                     Tic Tac Toe
                   </span>
-                </h1>
-                <h2 className="text-2xl font-bold uppercase tracking-[0.3em] mt-1">
-                  <span className={dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}>
-                    Arcade
-                  </span>
-                </h2>
+                </motion.h1>
+                <motion.h2 
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: 0.3 }}
+                  className="text-xl font-bold uppercase tracking-[0.35em] mt-2"
+                  style={{ color: dk ? "rgba(255,215,0,0.5)" : "rgba(183,110,121,0.45)" }}
+                >
+                  Arcade
+                </motion.h2>
               </div>
 
               {/* Buttons */}
-              <div className="space-y-4 w-full max-w-[280px]">
+              <div className="w-full" style={{ display: "flex", flexDirection: "column", gap: 14, maxWidth: 280, margin: "0 auto" }}>
                 <motion.button
                   id="play-online-btn"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  whileHover={{ scale: 1.04, y: -2 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => { playSound("click", settings.soundOn); connectSocketServer(); setScreen("online_lobby"); }}
-                  className="w-full py-4 px-6 rounded-2xl text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-3 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-3 rounded-2xl cursor-pointer font-bold uppercase tracking-wider"
                   style={{
-                    background: dk ? "linear-gradient(135deg, #FFD700, #FF8C00)" : "linear-gradient(135deg, #b76e79, #d4a574)",
+                    padding: "16px 24px",
+                    fontSize: 13,
+                    background: accentGradient,
                     color: dk ? "#000" : "#fff",
-                    boxShadow: dk ? "0 6px 25px rgba(255,215,0,0.3)" : "0 6px 25px rgba(183,110,121,0.25)",
+                    boxShadow: dk ? "0 8px 30px rgba(255,215,0,0.22)" : "0 8px 30px rgba(183,110,121,0.18)",
                   }}
                 >
                   <Users size={18} /> Play Online
@@ -354,67 +552,92 @@ export default function App() {
 
                 <motion.button
                   id="play-offline-btn"
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.45 }}
+                  whileHover={{ scale: 1.04, y: -2 }}
+                  whileTap={{ scale: 0.96 }}
                   onClick={() => { playSound("click", settings.soundOn); resetOfflineGame(); setScreen("offline"); }}
-                  className="w-full py-4 px-6 rounded-2xl text-sm font-bold uppercase tracking-wider flex items-center justify-center gap-3 cursor-pointer"
+                  className="w-full flex items-center justify-center gap-3 rounded-2xl cursor-pointer font-bold uppercase tracking-wider"
                   style={{
-                    background: dk ? "rgba(15,12,8,0.8)" : "rgba(255,255,255,0.85)",
-                    color: dk ? "#fff" : "#333",
-                    border: dk ? "1px solid rgba(255,215,0,0.2)" : "1px solid rgba(183,110,121,0.15)",
-                    backdropFilter: "blur(8px)",
+                    padding: "16px 24px",
+                    fontSize: 13,
+                    background: dk ? "rgba(18,14,10,0.8)" : "rgba(255,255,255,0.85)",
+                    color: dk ? "#fff" : "#444",
+                    border: dk ? "1.5px solid rgba(255,215,0,0.15)" : "1.5px solid rgba(183,110,121,0.12)",
+                    backdropFilter: "blur(10px)",
+                    boxShadow: dk
+                      ? "0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,215,0,0.04)"
+                      : "0 4px 20px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.7)",
                   }}
                 >
-                  <Play size={18} style={{ color: dk ? "#FF8C00" : "#b76e79" }} /> Play Offline
+                  <Swords size={18} style={{ color: accentSecondary }} /> Play Offline
                 </motion.button>
               </div>
             </motion.div>
           )}
 
-          {/* ===== OFFLINE GAME ===== */}
+          {/* ════════ OFFLINE GAME ════════ */}
           {screen === "offline" && (
             <motion.div
               key="offline"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.93 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center space-y-6 w-full"
+              exit={{ opacity: 0, scale: 0.93 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col items-center w-full"
+              style={{ gap: 24 }}
             >
               {/* Status */}
-              <div className="text-center space-y-2">
-                <span className="text-[10px] font-mono uppercase tracking-[0.2em]"
-                  style={{ color: dk ? "#FFD700" : "#b76e79" }}
+              <div className="text-center fade-up" style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+                <span className="text-[10px] font-mono uppercase tracking-[0.25em]"
+                  style={{ color: dk ? "rgba(255,215,0,0.45)" : "rgba(183,110,121,0.4)" }}
                 >
-                  Local Offline • {settings.boardSize}×{settings.boardSize}
+                  Local Match • {settings.boardSize}×{settings.boardSize}
                 </span>
 
                 {offlineState.winner === "draw" ? (
-                  <h2 className="text-2xl font-black uppercase" style={{ color: dk ? "#999" : "#888" }}>
+                  <motion.h2
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className="text-2xl font-black uppercase"
+                    style={{ color: dk ? "#999" : "#888" }}
+                  >
                     Match Draw!
-                  </h2>
+                  </motion.h2>
                 ) : offlineState.winner ? (
-                  <h2 className={`text-2xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}>
+                  <motion.h2
+                    initial={{ scale: 0.8, opacity: 0 }}
+                    animate={{ scale: 1, opacity: 1 }}
+                    className={`text-2xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}
+                  >
                     Player {offlineState.winner} Wins!
-                  </h2>
+                  </motion.h2>
                 ) : (
                   <h2 className="text-xl font-bold flex items-center gap-2 justify-center"
                     style={{ color: dk ? "#eee" : "#333" }}
                   >
                     Turn:
-                    <span style={{ 
-                      color: offlineState.turn === "X" 
-                        ? (dk ? "#FFD700" : "#b76e79") 
-                        : (dk ? "#C0C0C0" : "#c49070"),
-                      fontSize: "1.3em",
-                      fontWeight: 900
-                    }}>
+                    <motion.span
+                      key={offlineState.turn}
+                      initial={{ scale: 0.5, opacity: 0, rotate: -20 }}
+                      animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                      transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                      style={{ 
+                        color: offlineState.turn === "X" 
+                          ? accent
+                          : (dk ? "#C0C0C0" : "#c49070"),
+                        fontSize: "1.3em",
+                        fontWeight: 900
+                      }}
+                    >
                       {offlineState.turn}
-                    </span>
+                    </motion.span>
                   </h2>
                 )}
               </div>
 
-              {/* GAME BOARD */}
+              {/* Board */}
               <div className="relative">
                 <GameBoard
                   board={offlineState.board}
@@ -425,20 +648,24 @@ export default function App() {
                   soundOn={settings.soundOn}
                   enabled={offlineState.winner === null}
                 />
-                {offlineState.winner !== null && offlineState.winner !== "draw" && <ParticleExplosion />}
               </div>
 
-              {/* Reset button */}
+              {/* Reset */}
               <motion.button
                 id="offline-reset-btn"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                whileHover={{ scale: 1.06, y: -1 }}
+                whileTap={{ scale: 0.94 }}
                 onClick={() => { playSound("click", settings.soundOn); resetOfflineGame(); }}
-                className="py-2.5 px-5 rounded-xl text-xs flex items-center gap-2 cursor-pointer font-medium"
+                className="flex items-center gap-2 rounded-xl cursor-pointer font-medium"
                 style={{
-                  border: dk ? "1px solid rgba(255,215,0,0.2)" : "1px solid rgba(183,110,121,0.15)",
-                  color: dk ? "#FFD700" : "#b76e79",
-                  background: dk ? "rgba(255,215,0,0.05)" : "rgba(183,110,121,0.04)",
+                  padding: "10px 20px",
+                  fontSize: 12,
+                  border: dk ? "1px solid rgba(255,215,0,0.15)" : "1px solid rgba(183,110,121,0.12)",
+                  color: accent,
+                  background: dk ? "rgba(255,215,0,0.04)" : "rgba(183,110,121,0.03)",
                 }}
               >
                 <RefreshCw size={13} /> Reset Match
@@ -446,40 +673,61 @@ export default function App() {
             </motion.div>
           )}
 
-          {/* ===== ONLINE LOBBY ===== */}
+          {/* ════════ ONLINE LOBBY ════════ */}
           {screen === "online_lobby" && (
             <motion.div
               key="lobby"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="flex flex-col items-center space-y-6 w-full max-w-[320px]"
+              initial={{ opacity: 0, y: 30, scale: 0.97 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -30, scale: 0.97 }}
+              transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col items-center w-full"
+              style={{ maxWidth: 330, gap: 28 }}
             >
-              <div className="text-center space-y-2">
-                <Users size={40} style={{ color: dk ? "#FFD700" : "#b76e79", filter: dk ? "drop-shadow(0 0 10px rgba(255,215,0,0.4))" : "" }} className="mx-auto" />
-                <h2 className="text-xl font-black uppercase tracking-tight" style={{ color: dk ? "#fff" : "#333" }}>
+              <motion.div 
+                initial={{ opacity: 0, y: 15 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.1 }}
+                className="text-center" 
+                style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 10 }}
+              >
+                <div className="flex items-center justify-center rounded-2xl"
+                  style={{
+                    width: 64, height: 64,
+                    background: dk ? "rgba(255,215,0,0.06)" : "rgba(183,110,121,0.05)",
+                    border: dk ? "1px solid rgba(255,215,0,0.1)" : "1px solid rgba(183,110,121,0.08)",
+                  }}
+                >
+                  <Users size={30} className={dk ? "logo-glow-dark" : "logo-glow-light"} style={{ color: accent }} />
+                </div>
+                <h2 className="text-lg font-black uppercase tracking-tight" style={{ color: dk ? "#fff" : "#333" }}>
                   Multiplayer Lobby
                 </h2>
-                <p className="text-xs leading-relaxed" style={{ color: dk ? "#888" : "#888" }}>
+                <p className="text-xs leading-relaxed" style={{ color: dk ? "#777" : "#888", maxWidth: 260 }}>
                   Create a room or join with a code from your partner.
                 </p>
-              </div>
+              </motion.div>
 
               {isOnlineConnecting ? (
-                <div className="flex flex-col items-center space-y-3 py-6">
-                  <div className="w-10 h-10 rounded-full animate-spin"
-                    style={{ border: "3px solid transparent", borderTopColor: dk ? "#FFD700" : "#b76e79", borderRightColor: dk ? "#FF8C00" : "#d4a574" }}
+                <div className="flex flex-col items-center" style={{ gap: 14, padding: "20px 0" }}>
+                  <div className="spin-loader"
+                    style={{
+                      width: 40, height: 40, borderRadius: "50%",
+                      border: "3px solid transparent",
+                      borderTopColor: accent, borderRightColor: accentSecondary,
+                    }}
                   />
-                  <span className="text-[10px] font-mono uppercase tracking-widest" style={{ color: dk ? "#FFD700" : "#b76e79" }}>
+                  <span className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: accent }}>
                     Connecting...
                   </span>
                 </div>
               ) : networkError ? (
-                <div className="space-y-4 w-full text-center">
-                  <div className="p-3 rounded-xl text-xs"
+                <div className="w-full text-center" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                  <div className="rounded-xl text-xs"
                     style={{ 
-                      background: dk ? "rgba(255,140,0,0.1)" : "rgba(183,110,121,0.08)",
-                      border: dk ? "1px solid rgba(255,140,0,0.25)" : "1px solid rgba(183,110,121,0.2)",
+                      padding: "14px 16px",
+                      background: dk ? "rgba(255,140,0,0.08)" : "rgba(183,110,121,0.06)",
+                      border: dk ? "1px solid rgba(255,140,0,0.2)" : "1px solid rgba(183,110,121,0.15)",
                       color: dk ? "#FF8C00" : "#b76e79"
                     }}
                   >
@@ -487,41 +735,51 @@ export default function App() {
                   </div>
                   <motion.button
                     id="retry-btn"
-                    whileHover={{ scale: 1.02 }}
-                    whileTap={{ scale: 0.98 }}
+                    whileHover={{ scale: 1.03 }}
+                    whileTap={{ scale: 0.97 }}
                     onClick={connectSocketServer}
-                    className="w-full py-3 rounded-xl text-xs uppercase font-bold tracking-wider cursor-pointer"
-                    style={{ background: dk ? "#FFD700" : "#b76e79", color: dk ? "#000" : "#fff" }}
+                    className="w-full rounded-xl text-xs uppercase font-bold tracking-wider cursor-pointer"
+                    style={{ padding: "14px", background: accent, color: dk ? "#000" : "#fff" }}
                   >
                     Retry Connection
                   </motion.button>
                 </div>
               ) : (
-                <div className="space-y-5 w-full">
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.2 }}
+                  className="w-full" 
+                  style={{ display: "flex", flexDirection: "column", gap: 20 }}
+                >
                   {/* Create room */}
-                  <div className="p-4 rounded-2xl space-y-3"
+                  <div className="rounded-2xl"
                     style={{
-                      border: dk ? "1px solid rgba(255,215,0,0.12)" : "1px solid rgba(183,110,121,0.1)",
-                      background: dk ? "rgba(255,215,0,0.04)" : "rgba(183,110,121,0.03)",
+                      padding: "18px",
+                      display: "flex", flexDirection: "column", gap: 14,
+                      border: dk ? "1px solid rgba(255,215,0,0.1)" : "1px solid rgba(183,110,121,0.08)",
+                      background: dk ? "rgba(255,215,0,0.03)" : "rgba(183,110,121,0.02)",
                     }}
                   >
                     <div className="flex items-center justify-between">
-                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: dk ? "#FFD700" : "#b76e79" }}>
+                      <span className="text-xs font-bold uppercase tracking-wider" style={{ color: accent }}>
                         Create Arena
                       </span>
-                      <span className="text-[10px] font-mono" style={{ color: "#888" }}>
+                      <span className="text-[10px] font-mono" style={{ color: dk ? "#666" : "#999" }}>
                         {settings.boardSize}×{settings.boardSize}
                       </span>
                     </div>
                     <motion.button
                       id="create-room-btn"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.03, y: -1 }}
+                      whileTap={{ scale: 0.97 }}
                       onClick={triggerCreateRoom}
-                      className="w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+                      className="w-full rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
                       style={{
-                        background: dk ? "linear-gradient(135deg, #FFD700, #FF8C00)" : "linear-gradient(135deg, #b76e79, #d4a574)",
+                        padding: "14px",
+                        background: accentGradient,
                         color: dk ? "#000" : "#fff",
+                        boxShadow: dk ? "0 4px 18px rgba(255,215,0,0.18)" : "0 4px 14px rgba(183,110,121,0.12)",
                       }}
                     >
                       Create New Room
@@ -529,14 +787,14 @@ export default function App() {
                   </div>
 
                   {/* Divider */}
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-px" style={{ background: dk ? "rgba(255,215,0,0.1)" : "rgba(183,110,121,0.1)" }} />
-                    <span className="text-[9px] font-mono uppercase" style={{ color: "#888" }}>or join</span>
-                    <div className="flex-1 h-px" style={{ background: dk ? "rgba(255,215,0,0.1)" : "rgba(183,110,121,0.1)" }} />
+                  <div className="flex items-center" style={{ gap: 12 }}>
+                    <div className="flex-1" style={{ height: 1, background: dk ? "rgba(255,215,0,0.08)" : "rgba(183,110,121,0.08)" }} />
+                    <span className="text-[10px] font-mono uppercase" style={{ color: dk ? "#555" : "#999" }}>or join</span>
+                    <div className="flex-1" style={{ height: 1, background: dk ? "rgba(255,215,0,0.08)" : "rgba(183,110,121,0.08)" }} />
                   </div>
 
                   {/* Join room */}
-                  <form onSubmit={triggerJoinRoom} className="space-y-3">
+                  <form onSubmit={triggerJoinRoom} style={{ display: "flex", flexDirection: "column", gap: 12 }}>
                     <input
                       id="join-room-input"
                       type="text"
@@ -544,107 +802,147 @@ export default function App() {
                       value={joinCodeInput}
                       onChange={(e) => setJoinCodeInput(e.target.value.toUpperCase())}
                       maxLength={6}
-                      className="w-full py-3.5 px-4 rounded-xl text-center font-mono font-bold tracking-[0.3em] text-base outline-none"
+                      className="w-full rounded-xl text-center font-mono font-bold outline-none"
                       style={{
-                        color: dk ? "#FFD700" : "#b76e79",
-                        border: dk ? "1.5px solid rgba(255,215,0,0.2)" : "1.5px solid rgba(183,110,121,0.15)",
-                        background: dk ? "rgba(255,215,0,0.04)" : "rgba(183,110,121,0.03)",
+                        padding: "14px 16px",
+                        fontSize: 15,
+                        letterSpacing: "0.3em",
+                        color: accent,
+                        border: dk ? "1.5px solid rgba(255,215,0,0.15)" : "1.5px solid rgba(183,110,121,0.12)",
+                        background: dk ? "rgba(255,215,0,0.03)" : "rgba(183,110,121,0.02)",
                       }}
                     />
                     <motion.button
                       id="join-room-btn"
-                      whileHover={{ scale: 1.02 }}
-                      whileTap={{ scale: 0.98 }}
+                      whileHover={{ scale: 1.03 }}
+                      whileTap={{ scale: 0.97 }}
                       type="submit"
-                      className="w-full py-3 rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
+                      className="w-full rounded-xl text-xs font-bold uppercase tracking-wider cursor-pointer"
                       style={{
-                        background: dk ? "rgba(15,12,8,0.8)" : "rgba(255,255,255,0.85)",
-                        color: dk ? "#fff" : "#333",
-                        border: dk ? "1px solid rgba(255,215,0,0.15)" : "1px solid rgba(183,110,121,0.12)",
+                        padding: "14px",
+                        background: dk ? "rgba(18,14,10,0.8)" : "rgba(255,255,255,0.85)",
+                        color: dk ? "#fff" : "#444",
+                        border: dk ? "1px solid rgba(255,215,0,0.12)" : "1px solid rgba(183,110,121,0.1)",
                       }}
                     >
                       Join Room
                     </motion.button>
                   </form>
-                </div>
+                </motion.div>
               )}
             </motion.div>
           )}
 
-          {/* ===== ONLINE ACTIVE GAME ===== */}
+          {/* ════════ ONLINE ACTIVE GAME ════════ */}
           {screen === "online_active" && onlineRoom && socket && (
             <motion.div
               key="online_game"
-              initial={{ opacity: 0, scale: 0.95 }}
+              initial={{ opacity: 0, scale: 0.93 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              className="flex flex-col items-center space-y-5 w-full"
+              exit={{ opacity: 0, scale: 0.93 }}
+              transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
+              className="flex flex-col items-center w-full"
+              style={{ gap: 20 }}
             >
               {onlineRoom.state === "waiting" ? (
                 /* Waiting for opponent */
-                <div className="text-center space-y-5 py-6">
-                  <span className="text-[10px] font-mono uppercase tracking-[0.2em]" style={{ color: dk ? "#FFD700" : "#b76e79" }}>
+                <motion.div 
+                  initial={{ opacity: 0, y: 15 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="text-center" 
+                  style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 20, padding: "24px 0" }}
+                >
+                  <span className="text-[10px] font-mono uppercase tracking-[0.25em]"
+                    style={{ color: dk ? "rgba(255,215,0,0.5)" : "rgba(183,110,121,0.45)" }}
+                  >
                     Room Created — Share Code
                   </span>
 
                   <motion.div
-                    whileHover={{ scale: 1.03 }}
+                    whileHover={{ scale: 1.04 }}
+                    whileTap={{ scale: 0.98 }}
                     onClick={copyRoomCode}
-                    className="inline-flex items-center gap-3 py-4 px-8 rounded-2xl cursor-pointer"
+                    className="inline-flex items-center rounded-2xl cursor-pointer"
                     style={{
-                      background: dk ? "rgba(255,215,0,0.08)" : "rgba(183,110,121,0.06)",
-                      border: dk ? "2px solid rgba(255,215,0,0.3)" : "2px solid rgba(183,110,121,0.2)",
-                      boxShadow: dk ? "0 4px 20px rgba(255,215,0,0.15)" : "0 4px 20px rgba(183,110,121,0.1)",
+                      padding: "18px 32px",
+                      gap: 14,
+                      background: dk ? "rgba(255,215,0,0.06)" : "rgba(183,110,121,0.05)",
+                      border: dk ? "2px solid rgba(255,215,0,0.25)" : "2px solid rgba(183,110,121,0.18)",
+                      boxShadow: dk ? "0 6px 28px rgba(255,215,0,0.1)" : "0 6px 28px rgba(183,110,121,0.08)",
                     }}
                   >
-                    <span className="font-mono text-2xl font-black tracking-[0.4em]" style={{ color: dk ? "#FFD700" : "#b76e79" }}>
+                    <span className="font-mono text-2xl font-black" style={{ letterSpacing: "0.4em", color: accent }}>
                       {onlineRoom.id}
                     </span>
                     {copiedCode ? (
-                      <Check size={18} style={{ color: dk ? "#FFD700" : "#b76e79" }} />
+                      <Check size={18} style={{ color: accent }} />
                     ) : (
-                      <Copy size={18} style={{ color: dk ? "rgba(255,215,0,0.6)" : "rgba(183,110,121,0.5)" }} />
+                      <Copy size={18} style={{ color: dk ? "rgba(255,215,0,0.4)" : "rgba(183,110,121,0.35)" }} />
                     )}
                   </motion.div>
 
-                  <p className="text-xs animate-pulse max-w-[250px] mx-auto leading-relaxed" style={{ color: "#888" }}>
+                  <motion.p 
+                    animate={{ opacity: [0.5, 1, 0.5] }}
+                    transition={{ repeat: Infinity, duration: 2 }}
+                    className="text-xs leading-relaxed" 
+                    style={{ color: dk ? "#666" : "#999", maxWidth: 250 }}
+                  >
                     Waiting for Player 2 to join with this code...
-                  </p>
-                </div>
+                  </motion.p>
+                </motion.div>
               ) : (
-                /* Active gameplay */
-                <div className="flex flex-col items-center space-y-4 w-full">
+                /* Active gameplay — no rematch button, game ends → home */
+                <div className="flex flex-col items-center w-full" style={{ gap: 18 }}>
                   {/* Status */}
-                  <div className="text-center space-y-1">
-                    <div className="flex justify-center gap-3 text-[10px] uppercase font-mono tracking-widest" style={{ color: dk ? "#FFD700" : "#b76e79" }}>
+                  <div className="text-center fade-up" style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+                    <div className="flex justify-center items-center text-[11px] uppercase font-mono tracking-widest"
+                      style={{ color: dk ? "rgba(255,215,0,0.45)" : "rgba(183,110,121,0.4)", gap: 8 }}
+                    >
                       <span>You: {onlineRoom.players.find(p => p.id === socket.id)?.symbol}</span>
-                      <span>•</span>
+                      <span style={{ opacity: 0.3 }}>•</span>
                       <span>{onlineRoom.boardSize}×{onlineRoom.boardSize}</span>
                     </div>
 
                     {onlineRoom.winner === "draw" ? (
-                      <h2 className="text-2xl font-black uppercase" style={{ color: "#999" }}>Game Drawn!</h2>
+                      <motion.h2
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className="text-2xl font-black uppercase"
+                        style={{ color: "#999" }}
+                      >
+                        Game Drawn!
+                      </motion.h2>
                     ) : onlineRoom.winner ? (
-                      <h2 className={`text-2xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}>
+                      <motion.h2
+                        initial={{ scale: 0.8, opacity: 0 }}
+                        animate={{ scale: 1, opacity: 1 }}
+                        className={`text-2xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}
+                      >
                         Player {onlineRoom.winner} Wins!
-                      </h2>
+                      </motion.h2>
                     ) : (
-                      <h2 className="text-xl font-bold flex items-center justify-center gap-2" style={{ color: dk ? "#eee" : "#333" }}>
+                      <h2 className="text-xl font-bold flex items-center justify-center" style={{ color: dk ? "#eee" : "#333", gap: 8 }}>
                         Turn:
-                        <span style={{
-                          color: onlineRoom.turn === onlineRoom.players.find(p => p.id === socket.id)?.symbol
-                            ? (dk ? "#FFD700" : "#b76e79")
-                            : (dk ? "#C0C0C0" : "#c49070"),
-                          fontSize: "1.2em",
-                          fontWeight: 900,
-                        }}>
-                          {onlineRoom.turn === onlineRoom.players.find(p => p.id === socket.id)?.symbol ? "YOURS" : `Pl ${onlineRoom.turn}`}
-                        </span>
+                        <motion.span
+                          key={onlineRoom.turn}
+                          initial={{ scale: 0.5, opacity: 0, rotate: -20 }}
+                          animate={{ scale: 1, opacity: 1, rotate: 0 }}
+                          transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                          style={{
+                            color: onlineRoom.turn === onlineRoom.players.find(p => p.id === socket.id)?.symbol
+                              ? accent
+                              : (dk ? "#C0C0C0" : "#c49070"),
+                            fontSize: "1.2em",
+                            fontWeight: 900,
+                          }}
+                        >
+                          {onlineRoom.turn === onlineRoom.players.find(p => p.id === socket.id)?.symbol ? "YOURS" : "WAITING..."}
+                        </motion.span>
                       </h2>
                     )}
                   </div>
 
-                  {/* GAME BOARD */}
+                  {/* Board */}
                   <div className="relative">
                     <GameBoard
                       board={onlineRoom.board}
@@ -658,44 +956,27 @@ export default function App() {
                         onlineRoom.turn === onlineRoom.players.find(p => p.id === socket.id)?.symbol
                       }
                     />
-                    {onlineRoom.winner !== null && onlineRoom.winner !== "draw" && <ParticleExplosion />}
                   </div>
 
-                  {/* Rematch button */}
-                  {onlineRoom.state === "ended" && (
-                    <motion.button
-                      id="rematch-btn"
-                      whileHover={{ scale: 1.05 }}
-                      whileTap={{ scale: 0.95 }}
-                      onClick={() => { playSound("click", settings.soundOn); socket.emit("playAgain", { roomId: onlineRoom.id }); }}
-                      className="py-3 px-6 rounded-2xl text-xs uppercase font-bold tracking-wider cursor-pointer"
-                      style={{
-                        background: dk ? "linear-gradient(135deg, #FFD700, #FF8C00)" : "linear-gradient(135deg, #b76e79, #d4a574)",
-                        color: dk ? "#000" : "#fff",
-                        boxShadow: dk ? "0 4px 20px rgba(255,215,0,0.3)" : "0 4px 15px rgba(183,110,121,0.2)",
-                      }}
-                    >
-                      Request Rematch
-                    </motion.button>
+                  {/* Chat — only when game is playing, not ended */}
+                  {onlineRoom.state === "playing" && (
+                    <ChatSection
+                      chat={onlineRoom.chat}
+                      mySymbol={onlineRoom.players.find(p => p.id === socket.id)?.symbol || "X"}
+                      onSendMessage={triggerSendChat}
+                      isDarkMode={dk}
+                      soundOn={settings.soundOn}
+                    />
                   )}
-
-                  {/* Chat overlay toggle */}
-                  <ChatSection
-                    chat={onlineRoom.chat}
-                    mySymbol={onlineRoom.players.find(p => p.id === socket.id)?.symbol || "X"}
-                    onSendMessage={triggerSendChat}
-                    isDarkMode={dk}
-                    soundOn={settings.soundOn}
-                  />
                 </div>
               )}
             </motion.div>
           )}
 
         </AnimatePresence>
-      </div>
+      </main>
 
-      {/* Settings modal */}
+      {/* Settings Modal */}
       <SettingsModal
         isOpen={isSettingsOpen}
         onClose={() => setIsSettingsOpen(false)}

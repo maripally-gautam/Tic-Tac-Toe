@@ -89,21 +89,30 @@ export const playSound = (type: string, enabled: boolean = true) => {
       }
 
       case "move_o": {
-        // Softer woodblock plop for O
-        const osc = ctx.createOscillator();
+        // Bold percussive plop for O — dual oscillators for richer sound
+        const osc1 = ctx.createOscillator();
+        const osc2 = ctx.createOscillator();
         const gain = ctx.createGain();
-        osc.connect(gain);
+
+        osc1.connect(gain);
+        osc2.connect(gain);
         gain.connect(ctx.destination);
 
-        osc.type = "sine";
-        osc.frequency.setValueAtTime(329.63, now); // E4
-        osc.frequency.exponentialRampToValueAtTime(440, now + 0.15);
+        osc1.type = "sine";
+        osc1.frequency.setValueAtTime(392, now); // G4
+        osc1.frequency.exponentialRampToValueAtTime(523.25, now + 0.18);
 
-        gain.gain.setValueAtTime(0.15, now);
-        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.15);
+        osc2.type = "triangle";
+        osc2.frequency.setValueAtTime(784, now); // G5
+        osc2.frequency.exponentialRampToValueAtTime(1046.5, now + 0.18);
 
-        osc.start(now);
-        osc.stop(now + 0.15);
+        gain.gain.setValueAtTime(0.2, now);
+        gain.gain.exponentialRampToValueAtTime(0.001, now + 0.18);
+
+        osc1.start(now);
+        osc2.start(now);
+        osc1.stop(now + 0.18);
+        osc2.stop(now + 0.18);
         break;
       }
 
