@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Gamepad2, 
@@ -89,14 +89,14 @@ export default function App() {
     }, 3000);
   };
 
-  const dismissParty = () => {
+  const dismissParty = useCallback(() => {
     if (partyTimeoutRef.current) {
       window.clearTimeout(partyTimeoutRef.current);
       partyTimeoutRef.current = null;
     }
     setShowPartyEffect(false);
     setPartyMessage("");
-  };
+  }, []);
 
   // Socket connection
   const connectSocketServer = () => {
@@ -150,10 +150,10 @@ export default function App() {
           triggerParty("Match Draw!");
         } else if (myPlayer && room.winner === myPlayer.symbol) {
           playSound("win", settings.soundOn);
-          triggerParty(`Player ${room.winner} Wins! 🏆`);
+          triggerParty("You Won! 🏆");
         } else {
           playSound("lose", settings.soundOn);
-          triggerParty(`Player ${room.winner} Wins!`);
+          triggerParty("You Lost!");
         }
         // Instantly go home after party effect
         postMatchTimeoutRef.current = window.setTimeout(() => {
@@ -225,6 +225,10 @@ export default function App() {
     window.addEventListener("popstate", onPopState);
     return () => window.removeEventListener("popstate", onPopState);
   }, [screen, socket, settings.boardSize]);
+
+  useEffect(() => {
+    dismissParty();
+  }, [screen, dismissParty]);
 
   useEffect(() => {
     if (screen === "home") {
@@ -941,7 +945,7 @@ export default function App() {
                         animate={{ scale: 1, opacity: 1 }}
                         className={`text-2xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}
                       >
-                        Player {onlineRoom.winner} Wins!
+                        {onlineRoom.winner === onlineRoom.players.find(p => p.id === socket.id)?.symbol ? "You Won! 🏆" : "You Lost!"}
                       </motion.h2>
                     ) : (
                       <h2 className="text-xl font-bold flex items-center justify-center" style={{ color: dk ? "#eee" : "#333", gap: 8 }}>
