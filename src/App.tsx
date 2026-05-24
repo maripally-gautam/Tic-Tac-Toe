@@ -619,13 +619,7 @@ export default function App() {
                     Match Draw!
                   </motion.h2>
                 ) : offlineState.winner ? (
-                  <motion.h2
-                    initial={{ scale: 0.8, opacity: 0 }}
-                    animate={{ scale: 1, opacity: 1 }}
-                    className={`text-2xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}
-                  >
-                    Player {offlineState.winner} Wins!
-                  </motion.h2>
+                  null
                 ) : (
                   <h2 className="text-xl font-bold flex items-center gap-2 justify-center"
                     style={{ color: dk ? "#eee" : "#333" }}
@@ -940,13 +934,7 @@ export default function App() {
                         Game Drawn!
                       </motion.h2>
                     ) : onlineRoom.winner ? (
-                      <motion.h2
-                        initial={{ scale: 0.8, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
-                        className={`text-2xl font-black uppercase ${dk ? "gold-shimmer-text" : "rose-gold-shimmer-text"}`}
-                      >
-                        {onlineRoom.winner === onlineRoom.players.find(p => p.id === socket.id)?.symbol ? "You Won! 🏆" : "You Lost!"}
-                      </motion.h2>
+                      null
                     ) : (
                       <h2 className="text-xl font-bold flex items-center justify-center" style={{ color: dk ? "#eee" : "#333", gap: 8 }}>
                         Turn:
