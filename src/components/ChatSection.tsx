@@ -95,22 +95,20 @@ export default function ChatSection({
               transition={{ duration: 0.2 }}
               onClick={() => { playSound("click", soundOn); setIsOpen(false); }}
               className="fixed inset-0 z-40"
-              style={{ background: "rgba(0,0,0,0.4)", backdropFilter: "blur(4px)", WebkitBackdropFilter: "blur(4px)" }}
+              style={{ background: "rgba(0,0,0,0.4)" }}
             />
 
             <motion.div
               initial={{ y: "100%", opacity: 0 }}
               animate={{ y: 0, opacity: 1 }}
               exit={{ y: "100%", opacity: 0 }}
-              transition={{ type: "spring", damping: 30, stiffness: 380 }}
+              transition={{ duration: 0.16, ease: "easeOut" }}
               className="fixed bottom-0 left-0 right-0 z-50 flex flex-col rounded-t-2xl overflow-hidden"
               style={{
                 maxHeight: "55vh",
                 background: dk ? "rgba(14,11,9,0.97)" : "rgba(255,255,255,0.97)",
                 border: `1px solid ${dk ? "rgba(255,215,0,0.12)" : "rgba(183,110,121,0.1)"}`,
                 borderBottom: "none",
-                backdropFilter: "blur(24px)",
-                WebkitBackdropFilter: "blur(24px)",
                 boxShadow: dk ? "0 -6px 36px rgba(0,0,0,0.3)" : "0 -6px 36px rgba(0,0,0,0.06)",
                 color: dk ? "#fff" : "#333",
               }}

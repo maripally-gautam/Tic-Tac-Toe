@@ -6,7 +6,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
-  Play, 
   Gamepad2, 
   Settings, 
   Copy, 
@@ -25,7 +24,21 @@ import ParticleBackground from "./components/ParticleBackground";
 import GameBoard from "./components/GameBoard";
 import ChatSection from "./components/ChatSection";
 import SettingsModal from "./components/SettingsModal";
-import ParticleExplosion from "./components/ParticleExplosion";
+
+const normalizeServerUrl = (url: string) => url.trim().replace(/\/$/, "");
+
+const getSocketServerUrl = (customUrl?: string) => {
+  if (customUrl) return normalizeServerUrl(customUrl);
+
+  const configuredUrl = import.meta.env.VITE_SOCKET_URL || import.meta.env.VITE_APP_URL;
+  if (configuredUrl) return normalizeServerUrl(configuredUrl);
+
+  if (window.location.protocol === "http:" || window.location.protocol === "https:") {
+    return window.location.origin;
+  }
+
+  return "";
+};
 
 export default function App() {
   const [settings, setSettings] = useState<GameSettings>({
@@ -57,6 +70,7 @@ export default function App() {
   const [joinCodeInput, setJoinCodeInput] = useState("");
   const [networkError, setNetworkError] = useState<string | null>(null);
   const [systemAlert, setSystemAlert] = useState<string | null>(null);
+  const [customSocketUrl, setCustomSocketUrl] = useState(() => localStorage.getItem("ticTacToeSocketUrl") || "");
   const partyTimeoutRef = useRef<number | null>(null);
   const postMatchTimeoutRef = useRef<number | null>(null);
   const isNavigatingHistoryRef = useRef(false);
@@ -90,8 +104,22 @@ export default function App() {
     setIsOnlineConnecting(true);
     setNetworkError(null);
 
-    const socketUrl = window.location.origin;
-    const s = io(socketUrl, { reconnectionAttempts: 5, timeout: 10000 });
+    const socketUrl = getSocketServerUrl(customSocketUrl);
+    if (!socketUrl) {
+      setIsOnlineConnecting(false);
+      setNetworkError("Online server URL is missing. Set VITE_SOCKET_URL to your Render URL.");
+      return;
+    }
+
+    if (customSocketUrl) {
+      localStorage.setItem("ticTacToeSocketUrl", normalizeServerUrl(customSocketUrl));
+    }
+
+    const s = io(socketUrl, {
+      reconnectionAttempts: 3,
+      timeout: 8000,
+      transports: ["websocket", "polling"],
+    });
 
     s.on("connect", () => {
       setSocket(s);
@@ -341,24 +369,22 @@ export default function App() {
       style={{ background: dk ? "#0c0908" : "#faf5f2", height: "100dvh" }}
     >
       {/* Animated particle background */}
-      <ParticleBackground isDarkMode={dk} />
+      <ParticleBackground isDarkMode={dk} active={!isSettingsOpen && !showPartyEffect} />
 
       {/* ═══ Full-Screen Party Effect ═══ */}
       <AnimatePresence>
         {showPartyEffect && (
           <>
-            <ParticleExplosion />
             <motion.div
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.6 }}
-              transition={{ type: "spring", damping: 15, stiffness: 200 }}
+              transition={{ duration: 0.14, ease: "easeOut" }}
               className="fixed inset-0 flex items-center justify-center pointer-events-none"
               style={{ zIndex: 110 }}
             >
               <motion.div
-                animate={{ scale: [1, 1.08, 1] }}
-                transition={{ repeat: Infinity, duration: 0.8 }}
+                animate={{ scale: 1 }}
                 className="text-center"
                 style={{ padding: "28px 40px", borderRadius: 24 }}
               >
@@ -382,8 +408,6 @@ export default function App() {
           padding: "14px 20px",
           borderBottom: dk ? "1px solid rgba(255,215,0,0.06)" : "1px solid rgba(183,110,121,0.06)",
           background: dk ? "rgba(12,9,8,0.7)" : "rgba(250,245,242,0.8)",
-          backdropFilter: "blur(16px)",
-          WebkitBackdropFilter: "blur(16px)",
         }}
       >
         <div className="flex items-center gap-3">
@@ -404,8 +428,6 @@ export default function App() {
             </motion.button>
           ) : (
             <motion.div 
-              animate={{ rotate: [0, 5, -5, 0] }}
-              transition={{ repeat: Infinity, duration: 4, ease: "easeInOut" }}
               className="flex items-center justify-center" 
               style={{ width: 38, height: 38 }}
             >
@@ -446,7 +468,7 @@ export default function App() {
             initial={{ y: -40, opacity: 0, scale: 0.95 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -40, opacity: 0, scale: 0.95 }}
-            transition={{ type: "spring", damping: 22, stiffness: 300 }}
+            transition={{ duration: 0.14, ease: "easeOut" }}
             className="fixed z-50 rounded-2xl text-center text-sm font-semibold"
             style={{
               top: 72,
@@ -456,7 +478,6 @@ export default function App() {
               margin: "0 auto",
               background: dk ? "rgba(255,215,0,0.95)" : "rgba(183,110,121,0.95)",
               color: dk ? "#000" : "#fff",
-              backdropFilter: "blur(10px)",
               boxShadow: dk ? "0 8px 32px rgba(255,215,0,0.25)" : "0 8px 32px rgba(183,110,121,0.2)",
             }}
           >
@@ -484,8 +505,6 @@ export default function App() {
             >
               {/* Logo */}
               <motion.div
-                animate={{ scale: [1, 1.04, 1] }}
-                transition={{ repeat: Infinity, duration: 4.5, ease: "easeInOut" }}
                 className="flex items-center justify-center rounded-3xl"
                 style={{
                   width: 96, height: 96,
@@ -517,15 +536,6 @@ export default function App() {
                     Tic Tac Toe
                   </span>
                 </motion.h1>
-                <motion.h2 
-                  initial={{ opacity: 0 }}
-                  animate={{ opacity: 1 }}
-                  transition={{ delay: 0.3 }}
-                  className="text-xl font-bold uppercase tracking-[0.35em] mt-2"
-                  style={{ color: dk ? "rgba(255,215,0,0.5)" : "rgba(183,110,121,0.45)" }}
-                >
-                  Arcade
-                </motion.h2>
               </div>
 
               {/* Buttons */}
@@ -565,7 +575,6 @@ export default function App() {
                     background: dk ? "rgba(18,14,10,0.8)" : "rgba(255,255,255,0.85)",
                     color: dk ? "#fff" : "#444",
                     border: dk ? "1.5px solid rgba(255,215,0,0.15)" : "1.5px solid rgba(183,110,121,0.12)",
-                    backdropFilter: "blur(10px)",
                     boxShadow: dk
                       ? "0 4px 20px rgba(0,0,0,0.25), inset 0 1px 0 rgba(255,215,0,0.04)"
                       : "0 4px 20px rgba(0,0,0,0.03), inset 0 1px 0 rgba(255,255,255,0.7)",
@@ -622,7 +631,7 @@ export default function App() {
                       key={offlineState.turn}
                       initial={{ scale: 0.5, opacity: 0, rotate: -20 }}
                       animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                      transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                      transition={{ duration: 0.14, ease: "easeOut" }}
                       style={{ 
                         color: offlineState.turn === "X" 
                           ? accent
@@ -733,6 +742,21 @@ export default function App() {
                   >
                     {networkError}
                   </div>
+                  <input
+                    id="server-url-input"
+                    type="url"
+                    placeholder="https://your-render-url.onrender.com"
+                    value={customSocketUrl}
+                    onChange={(e) => setCustomSocketUrl(e.target.value)}
+                    className="w-full rounded-xl text-center font-mono outline-none"
+                    style={{
+                      padding: "13px 14px",
+                      fontSize: 11,
+                      color: accent,
+                      border: dk ? "1px solid rgba(255,215,0,0.15)" : "1px solid rgba(183,110,121,0.12)",
+                      background: dk ? "rgba(255,215,0,0.03)" : "rgba(183,110,121,0.02)",
+                    }}
+                  />
                   <motion.button
                     id="retry-btn"
                     whileHover={{ scale: 1.03 }}
@@ -882,8 +906,7 @@ export default function App() {
                   </motion.div>
 
                   <motion.p 
-                    animate={{ opacity: [0.5, 1, 0.5] }}
-                    transition={{ repeat: Infinity, duration: 2 }}
+                    animate={{ opacity: 0.8 }}
                     className="text-xs leading-relaxed" 
                     style={{ color: dk ? "#666" : "#999", maxWidth: 250 }}
                   >
@@ -927,7 +950,7 @@ export default function App() {
                           key={onlineRoom.turn}
                           initial={{ scale: 0.5, opacity: 0, rotate: -20 }}
                           animate={{ scale: 1, opacity: 1, rotate: 0 }}
-                          transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                          transition={{ duration: 0.14, ease: "easeOut" }}
                           style={{
                             color: onlineRoom.turn === onlineRoom.players.find(p => p.id === socket.id)?.symbol
                               ? accent

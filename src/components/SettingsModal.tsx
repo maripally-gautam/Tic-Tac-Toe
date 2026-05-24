@@ -41,10 +41,10 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            transition={{ duration: 0.25 }}
+            transition={{ duration: 0.12 }}
             onClick={() => { playSound("click", settings.soundOn); onClose(); }}
             className="fixed inset-0 z-40"
-            style={{ background: "rgba(0,0,0,0.55)", backdropFilter: "blur(10px)", WebkitBackdropFilter: "blur(10px)" }}
+            style={{ background: "rgba(0,0,0,0.48)" }}
           />
 
           {/* Modal */}
@@ -52,7 +52,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
             initial={{ y: -50, opacity: 0, scale: 0.94 }}
             animate={{ y: 0, opacity: 1, scale: 1 }}
             exit={{ y: -50, opacity: 0, scale: 0.94 }}
-            transition={{ type: "spring", damping: 26, stiffness: 380 }}
+            transition={{ duration: 0.16, ease: "easeOut" }}
             className="fixed z-50 rounded-2xl"
             style={{
               top: 20,
@@ -65,8 +65,6 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
               boxShadow: dk
                 ? "0 16px 50px rgba(0,0,0,0.5), 0 4px 16px rgba(255,215,0,0.08)"
                 : "0 16px 50px rgba(0,0,0,0.1), 0 4px 16px rgba(183,110,121,0.06)",
-              backdropFilter: "blur(24px)",
-              WebkitBackdropFilter: "blur(24px)",
               color: dk ? "#fff" : "#333",
             }}
           >
@@ -79,7 +77,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
               </h2>
               <motion.button
                 id="close-settings-btn"
-                whileHover={{ scale: 1.15, rotate: 90 }}
+                whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.9 }}
                 onClick={() => { playSound("click", settings.soundOn); onClose(); }}
                 className="flex items-center justify-center rounded-full cursor-pointer"
@@ -106,7 +104,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
                     className="bg-white rounded-full flex items-center justify-center"
                     style={{ width: 22, height: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}
                     animate={{ x: dk ? 24 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{ duration: 0.12 }}
                   >
                     {dk ? <Moon size={10} style={{ color: "#B8860B" }} /> : <Sun size={10} style={{ color: accent }} />}
                   </motion.div>
@@ -169,7 +167,7 @@ export default function SettingsModal({ isOpen, onClose, settings, onChangeSetti
                     className="bg-white rounded-full flex items-center justify-center"
                     style={{ width: 22, height: 22, boxShadow: "0 1px 4px rgba(0,0,0,0.15)" }}
                     animate={{ x: settings.soundOn ? 24 : 0 }}
-                    transition={{ type: "spring", stiffness: 500, damping: 30 }}
+                    transition={{ duration: 0.12 }}
                   >
                     {settings.soundOn
                       ? <Volume2 size={10} style={{ color: dk ? "#B8860B" : accent }} />

@@ -8,7 +8,7 @@
 }
 
 html, body {
-  font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   overflow: hidden;
@@ -49,7 +49,7 @@ html, body {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: gold-shimmer 3s linear infinite;
+  animation: none;
 }
 
 /* ─── Rose gold shimmer for light mode ─── */
@@ -66,7 +66,7 @@ html, body {
   -webkit-background-clip: text;
   background-clip: text;
   -webkit-text-fill-color: transparent;
-  animation: gold-shimmer 3s linear infinite;
+  animation: none;
 }
 
 /* ─── Floating pulse for chat FAB ─── */
@@ -76,7 +76,7 @@ html, body {
 }
 
 .float-pulse {
-  animation: float-pulse 2.2s ease-in-out infinite;
+  animation: none;
 }
 
 /* ─── Gold glow border ─── */
@@ -86,7 +86,7 @@ html, body {
 }
 
 .gold-glow {
-  animation: gold-glow 2s ease-in-out infinite;
+  animation: none;
 }
 
 /* ─── Winning cell pulsing glow ─── */
@@ -96,7 +96,7 @@ html, body {
 }
 
 .win-cell-pulse {
-  animation: win-cell-pulse 0.8s ease-in-out infinite;
+  animation: win-cell-pulse 0.8s ease-out 2;
 }
 
 /* ─── Spinner rotation ─── */
@@ -125,18 +125,14 @@ html, body {
   50% { filter: drop-shadow(0 0 14px rgba(255,215,0,0.45)); }
 }
 
-.logo-glow-dark {
-  animation: logo-glow-pulse 3s ease-in-out infinite;
-}
+.logo-glow-dark { filter: drop-shadow(0 0 8px rgba(255,215,0,0.35)); }
 
 @keyframes logo-glow-pulse-light {
   0%, 100% { filter: drop-shadow(0 0 6px rgba(183,110,121,0.2)); }
   50% { filter: drop-shadow(0 0 14px rgba(183,110,121,0.4)); }
 }
 
-.logo-glow-light {
-  animation: logo-glow-pulse-light 3s ease-in-out infinite;
-}
+.logo-glow-light { filter: drop-shadow(0 0 8px rgba(183,110,121,0.28)); }
 
 /* ─── Touch / mobile UX improvements ─── */
 button, [role="button"] {

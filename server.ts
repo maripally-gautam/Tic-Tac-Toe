@@ -319,7 +319,7 @@ async function integrateAppAndVite() {
   }
 
   httpServer.listen(PORT, "0.0.0.0", () => {
-    console.log(`Tic Tac Toe Full-stack Arcade listening on port ${PORT}`);
+    console.log(`Tic Tac Toe server listening on port ${PORT}`);
   });
 }
 

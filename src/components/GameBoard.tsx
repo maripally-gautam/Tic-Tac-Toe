@@ -71,8 +71,6 @@ export default function GameBoard({
           padding: boardPad,
           backgroundColor: dk ? "rgba(255,215,0,0.05)" : "rgba(183,110,121,0.04)",
           border: dk ? "1.5px solid rgba(255,215,0,0.12)" : "1.5px solid rgba(183,110,121,0.1)",
-          backdropFilter: "blur(12px)",
-          WebkitBackdropFilter: "blur(12px)",
           boxShadow: dk
             ? "0 8px 40px rgba(0,0,0,0.4), inset 0 1px 0 rgba(255,215,0,0.06)"
             : "0 8px 40px rgba(0,0,0,0.04), inset 0 1px 0 rgba(255,255,255,0.6)",
@@ -117,7 +115,7 @@ export default function GameBoard({
                     initial={{ scale: 0, rotate: -120, opacity: 0 }}
                     animate={{ scale: 1, rotate: 0, opacity: 1 }}
                     exit={{ scale: 0 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                    transition={{ duration: 0.14, ease: "easeOut" }}
                     className="flex items-center justify-center w-full h-full"
                   >
                     <svg
@@ -138,7 +136,7 @@ export default function GameBoard({
                     initial={{ scale: 0, rotate: 120, opacity: 0 }}
                     animate={{ scale: 1, rotate: 0, opacity: 1 }}
                     exit={{ scale: 0 }}
-                    transition={{ type: "spring", stiffness: 400, damping: 18 }}
+                    transition={{ duration: 0.14, ease: "easeOut" }}
                     className="flex items-center justify-center w-full h-full"
                   >
                     <svg

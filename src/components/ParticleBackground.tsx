@@ -11,180 +11,130 @@ interface Particle {
   alphaSpeed: number;
 }
 
-export default function ParticleBackground({ isDarkMode }: { isDarkMode: boolean }) {
+interface ParticleBackgroundProps {
+  isDarkMode: boolean;
+  active?: boolean;
+}
+
+export default function ParticleBackground({ isDarkMode, active = true }: ParticleBackgroundProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
     const canvas = canvasRef.current;
     if (!canvas) return;
 
-    const ctx = canvas.getContext("2d");
+    const ctx = canvas.getContext("2d", { alpha: false });
     if (!ctx) return;
 
-    let animationFrameId: number;
+    let animationFrameId = 0;
+    let timeoutId = 0;
 
     const resizeCanvas = () => {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+      const scale = Math.min(window.devicePixelRatio || 1, 1.5);
+      canvas.width = Math.floor(window.innerWidth * scale);
+      canvas.height = Math.floor(window.innerHeight * scale);
+      canvas.style.width = `${window.innerWidth}px`;
+      canvas.style.height = `${window.innerHeight}px`;
+      ctx.setTransform(scale, 0, 0, scale, 0, 0);
     };
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    const colors = isDarkMode 
-      ? [
-          "rgba(255, 215, 0,",     // Gold
-          "rgba(255, 180, 50,",    // Warm gold
-          "rgba(200, 170, 80,",    // Muted gold
-        ]
-      : [
-          "rgba(200, 130, 150,",   // Rose
-          "rgba(210, 170, 160,",   // Warm taupe
-          "rgba(190, 155, 140,",   // Sand
-          "rgba(220, 175, 185,",   // Blush
-        ];
+    const colors = isDarkMode
+      ? ["rgba(255, 215, 0,", "rgba(255, 180, 50,", "rgba(200, 170, 80,"]
+      : ["rgba(200, 130, 150,", "rgba(210, 170, 160,", "rgba(190, 155, 140,"];
 
-    const particles: Particle[] = [];
-    const count = isDarkMode ? 12 : 14;
+    const particles: Particle[] = Array.from({ length: isDarkMode ? 8 : 10 }, () => ({
+      x: Math.random() * window.innerWidth,
+      y: Math.random() * window.innerHeight,
+      radius: Math.random() * 24 + 12,
+      vx: (Math.random() - 0.5) * 0.22,
+      vy: (Math.random() - 0.5) * 0.22,
+      color: colors[Math.floor(Math.random() * colors.length)],
+      alpha: Math.random() * 0.14 + 0.04,
+      alphaSpeed: (Math.random() * 0.002 + 0.0008) * (Math.random() > 0.5 ? 1 : -1),
+    }));
 
-    for (let i = 0; i < count; i++) {
-      particles.push({
-        x: Math.random() * canvas.width,
-        y: Math.random() * canvas.height,
-        radius: Math.random() * 30 + 15,
-        vx: (Math.random() - 0.5) * 0.3,
-        vy: (Math.random() - 0.5) * 0.3,
-        color: colors[Math.floor(Math.random() * colors.length)],
-        alpha: Math.random() * 0.2 + 0.05,
-        alphaSpeed: (Math.random() * 0.003 + 0.001) * (Math.random() > 0.5 ? 1 : -1)
-      });
-    }
-
-    const draw = () => {
-      const time = Date.now();
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-
+    const drawBase = () => {
       if (isDarkMode) {
-        // Clean dark background — minimal, elegant
-        const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        const bgGrad = ctx.createLinearGradient(0, 0, window.innerWidth, window.innerHeight);
         bgGrad.addColorStop(0, "#0c0908");
-        bgGrad.addColorStop(0.5, "#0a0806");
+        bgGrad.addColorStop(0.55, "#0a0806");
         bgGrad.addColorStop(1, "#080606");
         ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
 
-        // Subtle gold glow — very subtle
-        const glow1 = ctx.createRadialGradient(
-          canvas.width * 0.5, canvas.height * 0.2, 0,
-          canvas.width * 0.5, canvas.height * 0.2, canvas.width * 0.45
+        const glow = ctx.createRadialGradient(
+          window.innerWidth * 0.5,
+          window.innerHeight * 0.18,
+          0,
+          window.innerWidth * 0.5,
+          window.innerHeight * 0.18,
+          window.innerWidth * 0.42
         );
-        glow1.addColorStop(0, "rgba(255, 215, 0, 0.04)");
-        glow1.addColorStop(0.5, "rgba(255, 180, 50, 0.02)");
-        glow1.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = glow1;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        glow.addColorStop(0, "rgba(255, 215, 0, 0.035)");
+        glow.addColorStop(1, "rgba(0, 0, 0, 0)");
+        ctx.fillStyle = glow;
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
       } else {
-        // Warm, rich light background with depth
-        const bgGrad = ctx.createLinearGradient(0, 0, canvas.width, canvas.height);
+        const bgGrad = ctx.createLinearGradient(0, 0, window.innerWidth, window.innerHeight);
         bgGrad.addColorStop(0, "#faf5f2");
-        bgGrad.addColorStop(0.3, "#f8ede8");
-        bgGrad.addColorStop(0.6, "#f5e4dd");
+        bgGrad.addColorStop(0.45, "#f8ede8");
         bgGrad.addColorStop(1, "#f0dbd3");
         ctx.fillStyle = bgGrad;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Rose-gold top-right glow
-        const glow1 = ctx.createRadialGradient(
-          canvas.width * 0.75, canvas.height * 0.15, 0,
-          canvas.width * 0.75, canvas.height * 0.15, canvas.width * 0.5
-        );
-        glow1.addColorStop(0, "rgba(200, 130, 150, 0.1)");
-        glow1.addColorStop(0.5, "rgba(210, 165, 140, 0.05)");
-        glow1.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = glow1;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-        // Warm peach bottom-left
-        const glow2 = ctx.createRadialGradient(
-          canvas.width * 0.25, canvas.height * 0.85, 0,
-          canvas.width * 0.25, canvas.height * 0.85, canvas.width * 0.4
-        );
-        glow2.addColorStop(0, "rgba(220, 170, 150, 0.08)");
-        glow2.addColorStop(1, "rgba(0, 0, 0, 0)");
-        ctx.fillStyle = glow2;
-        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillRect(0, 0, window.innerWidth, window.innerHeight);
       }
+    };
 
-      // Render floating particles — subtle ambient orbs
-      particles.forEach((p) => {
-        p.x += p.vx;
-        p.y += p.vy + Math.sin(time * 0.0003 + p.radius) * 0.04;
+    const draw = () => {
+      drawBase();
 
-        // Boundary wrap
-        if (p.x < -p.radius * 3) p.x = canvas.width + p.radius * 2;
-        if (p.x > canvas.width + p.radius * 3) p.x = -p.radius * 2;
-        if (p.y < -p.radius * 3) p.y = canvas.height + p.radius * 2;
-        if (p.y > canvas.height + p.radius * 3) p.y = -p.radius * 2;
+      if (active) {
+        const time = Date.now();
+        particles.forEach((p) => {
+          p.x += p.vx;
+          p.y += p.vy + Math.sin(time * 0.0003 + p.radius) * 0.035;
 
-        // Oscillate alpha gently
-        p.alpha += p.alphaSpeed;
-        if (p.alpha > 0.25 || p.alpha < 0.04) {
-          p.alphaSpeed = -p.alphaSpeed;
-        }
+          if (p.x < -p.radius * 3) p.x = window.innerWidth + p.radius * 2;
+          if (p.x > window.innerWidth + p.radius * 3) p.x = -p.radius * 2;
+          if (p.y < -p.radius * 3) p.y = window.innerHeight + p.radius * 2;
+          if (p.y > window.innerHeight + p.radius * 3) p.y = -p.radius * 2;
 
-        ctx.beginPath();
-        const radGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 2);
-        radGrad.addColorStop(0, `${p.color}${p.alpha})`);
-        radGrad.addColorStop(0.6, `${p.color}${p.alpha * 0.3})`);
-        radGrad.addColorStop(1, `${p.color}0)`);
+          p.alpha += p.alphaSpeed;
+          if (p.alpha > 0.2 || p.alpha < 0.035) p.alphaSpeed = -p.alphaSpeed;
 
-        ctx.fillStyle = radGrad;
-        ctx.arc(p.x, p.y, p.radius * 2, 0, Math.PI * 2);
-        ctx.fill();
-      });
+          const radGrad = ctx.createRadialGradient(p.x, p.y, 0, p.x, p.y, p.radius * 1.7);
+          radGrad.addColorStop(0, `${p.color}${p.alpha})`);
+          radGrad.addColorStop(0.65, `${p.color}${p.alpha * 0.25})`);
+          radGrad.addColorStop(1, `${p.color}0)`);
 
-      // Subtle grid — very faint
-      const gridStep = 60;
-      const dx = (time * 0.004) % gridStep;
-      const dy = (time * 0.003) % gridStep;
+          ctx.beginPath();
+          ctx.fillStyle = radGrad;
+          ctx.arc(p.x, p.y, p.radius * 1.7, 0, Math.PI * 2);
+          ctx.fill();
+        });
 
-      ctx.lineWidth = 0.5;
-
-      if (isDarkMode) {
-        ctx.strokeStyle = "rgba(255, 215, 0, 0.02)";
-      } else {
-        ctx.strokeStyle = "rgba(180, 130, 120, 0.025)";
+        timeoutId = window.setTimeout(() => {
+          animationFrameId = requestAnimationFrame(draw);
+        }, 33);
       }
-
-      for (let x = dx; x < canvas.width; x += gridStep) {
-        ctx.beginPath();
-        ctx.moveTo(x, 0);
-        ctx.lineTo(x, canvas.height);
-        ctx.stroke();
-      }
-      for (let y = dy; y < canvas.height; y += gridStep) {
-        ctx.beginPath();
-        ctx.moveTo(0, y);
-        ctx.lineTo(canvas.width, y);
-        ctx.stroke();
-      }
-
-      animationFrameId = requestAnimationFrame(draw);
     };
 
     draw();
 
     return () => {
       window.removeEventListener("resize", resizeCanvas);
+      window.clearTimeout(timeoutId);
       cancelAnimationFrame(animationFrameId);
     };
-  }, [isDarkMode]);
+  }, [isDarkMode, active]);
 
   return (
     <canvas
       id="arcade-particle-canvas"
       ref={canvasRef}
-      className="fixed inset-0 w-full h-full pointer-events-none"
+      className="fixed inset-0 pointer-events-none"
       style={{ zIndex: 0 }}
     />
   );
